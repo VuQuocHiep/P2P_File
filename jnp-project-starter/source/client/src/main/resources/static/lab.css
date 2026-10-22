@@ -1,0 +1,18 @@
+.lab-topology,.lab-chart{width:100%;height:auto;display:block;min-width:760px}
+.panel:has(.lab-topology),.panel:has(.lab-chart){overflow-x:auto}
+.lab-topology rect,.lab-topology circle{fill:var(--panel2);stroke:var(--line);stroke-width:1.5}
+.lab-topology text,.lab-chart text{fill:var(--text);font-size:15px;font-family:inherit}
+.lab-topology .lab-self{fill:#18342f;stroke:var(--accent);stroke-width:2}
+.lab-small{font-size:13px!important}
+.lab-edge{stroke:var(--muted);stroke-width:2;fill:none;color:var(--accent)}
+.lab-edge.flow{stroke:var(--accent);stroke-width:3;stroke-dasharray:9 7;animation:lab-flow .8s linear infinite}
+.lab-control{stroke:#8495a7;stroke-width:2;stroke-dasharray:4 5;fill:none}
+.lab-grid{stroke:var(--line);stroke-width:1}
+.lab-rx-line,.lab-tx-line{fill:none;stroke-width:2.5;stroke-linejoin:round}
+.lab-rx-line{stroke:var(--accent)}.lab-tx-line{stroke:var(--blue)}
+.lab-rx{color:var(--accent)}.lab-tx{color:var(--blue)}
+.lab-legend,.lab-controls{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin:16px 0}
+.lab-controls select{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);max-width:100%;flex:1;min-width:180px}
+.lab-comparison{padding:16px;background:#18342f;border-radius:10px;color:var(--accent)}
+@keyframes lab-flow{to{stroke-dashoffset:-32}}
+@media(prefers-reduced-motion:reduce){.lab-edge.flow{animation:none}}

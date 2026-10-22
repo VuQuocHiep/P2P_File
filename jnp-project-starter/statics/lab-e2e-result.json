@@ -1,0 +1,43 @@
+{
+  "result": "PASS",
+  "size": 33554432,
+  "sha256": "e09320c5b00b34bb704802136c599a95b3996332ba84d7c7f21112b6231b6bd0",
+  "sources": {
+    "Peer B · bc116773": 31195136,
+    "Peer A · 782d54fa": 2621440
+  },
+  "checkpointBeforeRestart": 15990784,
+  "bytesAfterCorruptionCheck": 15728640,
+  "websocketPeerPush": true,
+  "labComparison": {
+    "name": "network-demo.bin",
+    "results": [
+      {
+        "workers": 4,
+        "chunks": 64,
+        "mode": "Một nguồn",
+        "sourceBytes": {
+          "Peer A · 782d54fa": 16777216
+        },
+        "speed": 4691538.069787891,
+        "bytes": 16777216,
+        "durationMs": 3576.0588
+      },
+      {
+        "workers": 4,
+        "chunks": 64,
+        "mode": "Nhiều nguồn",
+        "sourceBytes": {
+          "Peer A · 782d54fa": 8388608,
+          "Peer B · bc116773": 8388608
+        },
+        "speed": 4777021.300052869,
+        "bytes": 16777216,
+        "durationMs": 3512.0664
+      }
+    ],
+    "status": "COMPLETED"
+  },
+  "labFaultRecovery": true,
+  "logs": "C:\\BTL_LTM\\jnp-project-starter\\source\\target\\e2e-bab03de8"
+}
