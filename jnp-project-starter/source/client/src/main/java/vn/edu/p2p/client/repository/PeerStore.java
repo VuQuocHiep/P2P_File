@@ -1,6 +1,6 @@
 package vn.edu.p2p.client.repository;
 
-import vn.edu.p2p.client.model.PeerModels.*;
+import vn.edu.p2p.client.model.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;

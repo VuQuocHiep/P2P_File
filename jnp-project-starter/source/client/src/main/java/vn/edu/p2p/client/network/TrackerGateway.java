@@ -1,5 +1,6 @@
 package vn.edu.p2p.client.network;
 
+import vn.edu.p2p.client.exception.TrackerFailure;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.*;
@@ -35,8 +36,5 @@ public class TrackerGateway {
                 result.path("message").asText(result.path("detail").asText("Tracker từ chối yêu cầu.")));
         return result;
     }
-    public static class TrackerFailure extends java.io.IOException {
-        public final int status;
-        TrackerFailure(int status, String message) { super(message); this.status = status; }
-    }
+
 }

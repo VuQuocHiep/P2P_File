@@ -1,7 +1,7 @@
 package vn.edu.p2p.client;
 
 import vn.edu.p2p.client.repository.PeerStore;
-import vn.edu.p2p.client.dto.PeerRequests.*;
+import vn.edu.p2p.client.dto.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -15,13 +15,13 @@ class CheckpointTest {
         var mapper = new ObjectMapper();
         Path source = temp.resolve("original"); Files.write(source, new byte[]{1,2,3});
         var manifest = Manifest.create(source, "small.bin");
-        var origin = new vn.edu.p2p.client.model.PeerModels.ChunkSource("peer-b", "Máy B", "bob", "127.0.0.1", 9002, 123L);
+        var origin = new vn.edu.p2p.client.model.ChunkSource("peer-b", "Máy B", "bob", "127.0.0.1", 9002, 123L);
         try (var store = new PeerStore(temp.toString(), mapper)) {
-            var entry = new vn.edu.p2p.client.model.PeerModels.Entry();
+            var entry = new vn.edu.p2p.client.model.Entry();
             entry.manifest = manifest; entry.complete = true; entry.chunks.add(0);
             Files.copy(source, store.blob(manifest.id()));
             store.snapshot().library.put(manifest.id(), entry);
-            var job = new vn.edu.p2p.client.model.PeerModels.Job();
+            var job = new vn.edu.p2p.client.model.Job();
             job.id = "completed"; job.fileId = manifest.id(); job.status = "COMPLETED";
             job.chunkSources.put(0, origin); store.snapshot().jobs.put(job.id, job); store.save();
         }
@@ -42,13 +42,13 @@ class CheckpointTest {
         var mapper = new ObjectMapper(); var store = new PeerStore(temp.toString(), mapper);
         byte[] bytes = new byte[Manifest.CHUNK_SIZE + 20]; new java.util.Random(7).nextBytes(bytes);
         Path source = temp.resolve("original"); Files.write(source,bytes); var manifest = Manifest.create(source,"sample.bin");
-        var entry = new vn.edu.p2p.client.model.PeerModels.Entry(); entry.manifest=manifest; entry.chunks.add(0); entry.chunks.add(1);
+        var entry = new vn.edu.p2p.client.model.Entry(); entry.manifest=manifest; entry.chunks.add(0); entry.chunks.add(1);
         Files.createDirectories(store.chunk(manifest.id(),0).getParent());
         Files.write(store.chunk(manifest.id(),0),java.util.Arrays.copyOf(bytes,Manifest.CHUNK_SIZE));
         Files.write(store.chunk(manifest.id(),1),new byte[20]); // Deliberately corrupt second chunk.
         store.snapshot().library.put(manifest.id(),entry);
-        var job=new vn.edu.p2p.client.model.PeerModels.Job();job.id="resume-test";job.fileId=manifest.id();job.status="DOWNLOADING";
-        var origin = new vn.edu.p2p.client.model.PeerModels.ChunkSource("peer-a", "Máy A", "alice", "127.0.0.1", 9001, 123456L);
+        var job=new vn.edu.p2p.client.model.Job();job.id="resume-test";job.fileId=manifest.id();job.status="DOWNLOADING";
+        var origin = new vn.edu.p2p.client.model.ChunkSource("peer-a", "Máy A", "alice", "127.0.0.1", 9001, 123456L);
         job.chunkSources.put(0, origin); job.chunkSources.put(1, origin);
         store.snapshot().jobs.put(job.id,job);store.save();store.close();
         var restored=new PeerStore(temp.toString(),mapper);

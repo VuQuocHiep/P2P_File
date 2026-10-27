@@ -1,5 +1,6 @@
 package vn.edu.p2p.client.network;
 
+import vn.edu.p2p.client.model.FaultState;
 import vn.edu.p2p.common.concurrent.NamedThreads;
 import vn.edu.p2p.common.protocol.Wire;
 import java.io.*;
@@ -10,8 +11,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** Acceptor + bounded worker pool. Each accepted socket has exactly one owner. */
 public final class TcpChunkServer implements AutoCloseable {
-    @FunctionalInterface
-    public interface ChunkProvider { byte[] read(Wire.Request request) throws Exception; }
 
     private final ServerSocket listener;
     private final ExecutorService acceptor = Executors.newSingleThreadExecutor(NamedThreads.factory("tcp-accept"));
@@ -21,19 +20,18 @@ public final class TcpChunkServer implements AutoCloseable {
     private final ChunkProvider provider;
     private final int delay;
     private volatile boolean closing;
-    public record Fault(String mode, int delayMs, long until) {}
-    private volatile Fault fault = new Fault("NORMAL", 0, 0);
+    private volatile FaultState fault = new FaultState("NORMAL", 0, 0);
     private final AtomicLong injected = new AtomicLong();
 
     public void fault(String mode, int delayMs, int seconds) {
         if (mode == null || !Set.of("NORMAL", "SLOW", "DISCONNECT", "CORRUPT").contains(mode)
                 || delayMs < 0 || delayMs > 5000 || seconds < 1 || seconds > 120)
             throw new IllegalArgumentException("Chế độ lỗi không hợp lệ; độ trễ 0–5000 ms, thời hạn 1–120 giây.");
-        fault = new Fault(mode, delayMs, "NORMAL".equals(mode) ? 0 : System.currentTimeMillis() + seconds * 1000L);
+        fault = new FaultState(mode, delayMs, "NORMAL".equals(mode) ? 0 : System.currentTimeMillis() + seconds * 1000L);
     }
-    public Fault fault() {
-        Fault current = fault;
-        return current.until() > System.currentTimeMillis() ? current : new Fault("NORMAL", 0, 0);
+    public FaultState fault() {
+        FaultState current = fault;
+        return current.until() > System.currentTimeMillis() ? current : new FaultState("NORMAL", 0, 0);
     }
 
     public TcpChunkServer(int port, int delay, ChunkProvider provider) throws IOException {
@@ -75,7 +73,7 @@ public final class TcpChunkServer implements AutoCloseable {
             try {
                 bytes = provider.read(Wire.read(input));
                 if (delay > 0) Thread.sleep(delay);
-                Fault current = fault();
+                FaultState current = fault();
                 if (!"NORMAL".equals(current.mode())) {
                     injected.incrementAndGet();
                     if ("DISCONNECT".equals(current.mode())) return;

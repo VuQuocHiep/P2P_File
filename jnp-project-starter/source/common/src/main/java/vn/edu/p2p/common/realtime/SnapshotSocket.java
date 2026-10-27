@@ -8,26 +8,14 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Authenticated snapshot stream, application refresh requests, and RFC 6455 ping/pong. */
 public abstract class SnapshotSocket extends TextWebSocketHandler implements AutoCloseable {
     private final ObjectMapper json;
     private final ScheduledExecutorService timer;
-    private final Map<String, Connection> connections = new ConcurrentHashMap<>();
+    private final Map<String, SnapshotConnection> connections = new ConcurrentHashMap<>();
     private final AtomicLong sequences = new AtomicLong();
     private boolean closing;
-
-    private static final class Connection {
-        final WebSocketSession socket;
-        volatile long pong = System.currentTimeMillis();
-        long ping, lastRefresh;
-        ScheduledFuture<?> task;
-        final AtomicBoolean refreshPending = new AtomicBoolean();
-        Connection(WebSocketSession raw) {
-            socket = new ConcurrentWebSocketSessionDecorator(raw, 2000, 1024 * 1024);
-        }
-    }
 
     protected SnapshotSocket(ObjectMapper json, String threadName) {
         this.json = json;
@@ -40,12 +28,12 @@ public abstract class SnapshotSocket extends TextWebSocketHandler implements Aut
     @Override public synchronized void afterConnectionEstablished(WebSocketSession session) throws Exception {
         if (closing) { session.close(CloseStatus.GOING_AWAY); return; }
         if (connections.size() >= 32) { session.close(new CloseStatus(1013, "Server busy")); return; }
-        var connection = new Connection(session);
+        var connection = new SnapshotConnection(session);
         connections.put(session.getId(), connection);
         connection.task = timer.scheduleWithFixedDelay(() -> push(connection), 0, 1000, TimeUnit.MILLISECONDS);
     }
 
-    private void push(Connection connection) {
+    private void push(SnapshotConnection connection) {
         synchronized (connection) {
             try {
                 if (!connection.socket.isOpen()) { remove(connection); return; }
@@ -68,7 +56,7 @@ public abstract class SnapshotSocket extends TextWebSocketHandler implements Aut
     }
 
     @Override protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        Connection connection = connections.get(session.getId());
+        SnapshotConnection connection = connections.get(session.getId());
         if (connection == null) return;
         if (!"{\"type\":\"refresh\"}".equals(message.getPayload())) {
             disconnect(connection, CloseStatus.BAD_DATA);
@@ -93,26 +81,26 @@ public abstract class SnapshotSocket extends TextWebSocketHandler implements Aut
     }
 
     @Override protected void handlePongMessage(WebSocketSession session, PongMessage message) {
-        Connection connection = connections.get(session.getId());
+        SnapshotConnection connection = connections.get(session.getId());
         if (connection != null) connection.pong = System.currentTimeMillis();
     }
 
     @Override public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        Connection connection = connections.remove(session.getId());
+        SnapshotConnection connection = connections.remove(session.getId());
         if (connection != null && connection.task != null) connection.task.cancel(false);
     }
 
     @Override public void handleTransportError(WebSocketSession session, Throwable exception) {
-        Connection connection = connections.get(session.getId());
+        SnapshotConnection connection = connections.get(session.getId());
         if (connection != null) disconnect(connection, CloseStatus.SERVER_ERROR);
     }
 
-    private void remove(Connection connection) {
+    private void remove(SnapshotConnection connection) {
         connections.remove(connection.socket.getId());
         if (connection.task != null) connection.task.cancel(false);
     }
 
-    private void disconnect(Connection connection, CloseStatus status) {
+    private void disconnect(SnapshotConnection connection, CloseStatus status) {
         remove(connection);
         try { if (connection.socket.isOpen()) connection.socket.close(status); }
         catch (Exception ignored) {}

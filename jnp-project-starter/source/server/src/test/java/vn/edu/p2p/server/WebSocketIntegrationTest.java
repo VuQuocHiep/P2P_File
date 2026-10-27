@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import vn.edu.p2p.server.service.TrackerService;
-import vn.edu.p2p.server.dto.TrackerRequests.Login;
+import vn.edu.p2p.server.dto.Login;
 import java.net.*;
 import java.net.http.*;
 import java.time.Duration;

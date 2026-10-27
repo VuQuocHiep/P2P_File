@@ -1,16 +1,16 @@
 package vn.edu.p2p.client.exception;
 
+import vn.edu.p2p.client.exception.TrackerFailure;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.*;
 import java.util.Map;
-import vn.edu.p2p.client.network.TrackerGateway;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<?> invalid(IllegalArgumentException e) { return ResponseEntity.badRequest().body(Map.of("message", e.getMessage())); }
-    @ExceptionHandler(TrackerGateway.TrackerFailure.class)
-    ResponseEntity<?> tracker(TrackerGateway.TrackerFailure e) {
+    @ExceptionHandler(TrackerFailure.class)
+    ResponseEntity<?> tracker(TrackerFailure e) {
         return ResponseEntity.status(e.status).body(Map.of("message", e.getMessage()));
     }
     @ExceptionHandler(java.net.ConnectException.class)

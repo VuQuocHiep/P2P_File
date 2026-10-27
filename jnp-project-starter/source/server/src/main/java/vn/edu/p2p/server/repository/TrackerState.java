@@ -1,6 +1,6 @@
 package vn.edu.p2p.server.repository;
 
-import vn.edu.p2p.server.model.TrackerModels.*;
+import vn.edu.p2p.server.model.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;

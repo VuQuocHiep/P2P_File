@@ -1,5 +1,6 @@
 package vn.edu.p2p.common;
 
+import vn.edu.p2p.common.protocol.ChunkRequest;
 import vn.edu.p2p.common.protocol.Wire;
 import vn.edu.p2p.common.model.Manifest;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ class ProtocolTest {
         assertThrows(IOException.class, () -> Wire.read(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray()))));
         bytes.reset(); out.writeInt(Wire.MAGIC); out.writeInt(20); out.writeByte(1);
         assertThrows(EOFException.class, () -> Wire.read(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray()))));
-        bytes.reset(); var request = new Wire.Request("ticket", "file", 7); Wire.write(out, request);
+        bytes.reset(); var request = new ChunkRequest("ticket", "file", 7); Wire.write(out, request);
         assertEquals(request, Wire.read(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray()))));
     }
 }

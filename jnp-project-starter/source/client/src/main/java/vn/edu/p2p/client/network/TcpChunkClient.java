@@ -1,5 +1,6 @@
 package vn.edu.p2p.client.network;
 
+import vn.edu.p2p.common.protocol.ChunkRequest;
 import vn.edu.p2p.common.model.Manifest;
 import vn.edu.p2p.common.protocol.Wire;
 import java.io.*;
@@ -27,7 +28,7 @@ public final class TcpChunkClient implements AutoCloseable {
                 socket.setSoTimeout(8000);
                 var input = new DataInputStream(socket.getInputStream());
                 var output = new DataOutputStream(socket.getOutputStream());
-                Wire.write(output, new Wire.Request(ticket, manifest.id(), index));
+                Wire.write(output, new ChunkRequest(ticket, manifest.id(), index));
                 if (input.readUnsignedByte() != 0) throw new IOException(input.readUTF());
                 if (input.readInt() != expected) throw new IOException("Kích thước chunk sai.");
                 byte[] bytes = input.readNBytes(expected);

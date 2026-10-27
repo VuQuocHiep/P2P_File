@@ -114,7 +114,11 @@ Trong `source/server/src/main/java/vn/edu/p2p/server/`:
 
 Trong `source/client/src/main/java/vn/edu/p2p/client/` có các package tương tự; `network/` chứa `TcpChunkServer`, `TcpChunkClient`, `TrackerGateway`, còn `websocket/` đẩy trạng thái peer lên web.
 
-Trong `common/`: `model/Manifest`, `protocol/Wire`, `concurrent/NamedThreads`, `realtime/SnapshotSocket`. Hai lớp Application ở package gốc để Spring quét các package con.
+Mỗi model và DTO nằm trong một file Java riêng, ví dụ `model/Account.java`, `model/SharedFile.java`, `dto/Login.java`, `dto/Advertisement.java` ở server; `model/Entry.java`, `model/Job.java`, `dto/Download.java` ở client.
+
+Controller được chia theo chức năng: xác thực, peer, file/thư viện, tải file, quản trị và mô phỏng. `TrackerService` và `PeerEngine` giữ vai trò điều phối, chuyển lời gọi đến các service chuyên trách trong cùng package. `TrackerContext` và `PeerContext` giữ trạng thái dùng chung; các khóa đồng bộ, lịch heartbeat, giới hạn worker và vòng đời tài nguyên được giữ nguyên.
+
+Trong `common/`: `model/Manifest`, `protocol/Wire` và `protocol/ChunkRequest`, `concurrent/NamedThreads`, `realtime/SnapshotSocket` và `realtime/SnapshotConnection`. Hai lớp Application ở package gốc để Spring quét các package con.
 
 ### Các luồng chính
 
