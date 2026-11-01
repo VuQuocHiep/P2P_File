@@ -2,42 +2,94 @@ package vn.edu.p2p.client.service;
 
 import com.fasterxml.jackson.databind.*;
 import vn.edu.p2p.client.model.*;
+import vn.edu.p2p.client.dto.response.PeerStatusResponse.*;
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
 import java.util.*;
+import org.springframework.stereotype.Service;
+import vn.edu.p2p.client.dto.response.*;
+import vn.edu.p2p.client.mapper.LibraryMapper;
+import vn.edu.p2p.client.mapper.JobMapper;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
-final class PeerStatusService {
+@Service
+public class PeerStatusService {
     private final PeerContext context;
-    PeerStatusService(PeerContext context) { this.context = context; }
-    Map<String, Object> status() {
-        synchronized (context.store) {
-            var result = new LinkedHashMap<String, Object>();
-            result.put("user", context.user); result.put("tracker", context.tracker.base()); result.put("connection", context.connection);
-            result.put("peerId", context.store.snapshot().peerId); result.put("peerStatus", context.peerStatus); result.put("name", context.store.snapshot().name);
-            result.put("host", context.store.snapshot().host); result.put("tcpPort", context.tcpPort); result.put("uploaded", context.tcpServer.sentBytes());
-            result.put("catalog", context.catalogSnapshot);
-            result.put("lab", Map.of("fault", context.tcpServer.fault(), "benchmark", context.benchmark, "samples", context.peerLabService.networkSamples(),
-                    "links", new ArrayList<>(context.links.values()), "recentLinks", new ArrayList<>(context.recentLinks.values()),
-                    "sourceStats", new TreeMap<>(context.sourceStats)));
-            result.put("network", Map.of("upload", context.tcpServer.metrics(), "download", context.tcpClient.metrics(),
-                    "downloadWorkers", context.downloadPools.values().stream().mapToInt(ThreadPoolExecutor::getActiveCount).sum(),
-                    "activeDownloads", context.running.size(), "workerLimitPerFile", 4, "fileLimit", 2));
-            var library = new ArrayList<Map<String, Object>>();
-            for (Entry e : context.store.snapshot().library.values()) library.add(Map.of("manifest", e.manifest, "complete", e.complete,
-                    "sharing", e.sharing, "catalogStatus", e.catalogStatus, "chunks", new ArrayList<>(e.chunks)));
-            var jobs = new ArrayList<Map<String, Object>>();
-            for (Job j : context.store.snapshot().jobs.values()) {
-                Entry e = context.store.snapshot().library.get(j.fileId);
-                long elapsed = Math.max(1, System.currentTimeMillis() - context.speedStart.getOrDefault(j.id, System.currentTimeMillis()));
-                long speed = context.peerDownloadService.active(j.id) ? context.speedBytes.getOrDefault(j.id, new AtomicLong()).get() * 1000 / elapsed : 0;
-                jobs.add(Map.of("id", j.id, "fileId", j.fileId, "name", e.manifest.name(), "status", j.status,
-                        "bytes", context.peerDownloadService.completedBytes(e), "size", e.manifest.size(), "speed", speed, "error", j.error,
-                        "sourceBytes", new LinkedHashMap<>(j.sourceBytes), "chunks", e.chunks.size()));
+    private final LibraryMapper libraryMapper;
+    private final JobMapper jobMapper;
+
+    public PeerStatusService(
+            PeerContext context, LibraryMapper libraryMapper, JobMapper jobMapper) {
+        this.context = context;
+        this.libraryMapper = libraryMapper;
+        this.jobMapper = jobMapper;
+    }
+
+    public PeerStatusResponse status() {
+        synchronized (context.storage.monitor()) {
+            var user = context.user;
+            String tracker = context.tracker.base(), connection = context.connection;
+            String peerId = context.profile.getPeerId(), peerStatus = context.peerStatus;
+            String name = context.profile.getName(), host = context.profile.getHost();
+            long uploaded = context.tcpServer.sentBytes();
+            var catalog = context.catalogSnapshot;
+            var lab =
+                    new LabResponse(
+                            context.tcpServer.fault(),
+                            context.benchmark,
+                            context.peerLabService.networkSamples(),
+                            new ArrayList<>(context.links.values()),
+                            new ArrayList<>(context.recentLinks.values()),
+                            new TreeMap<>(context.sourceStats));
+            var network =
+                    new NetworkResponse(
+                            context.tcpServer.metrics(),
+                            context.tcpClient.metrics(),
+                            context.downloadPools.values().stream()
+                                    .mapToInt(ThreadPoolExecutor::getActiveCount)
+                                    .sum(),
+                            context.running.size(),
+                            4,
+                            2);
+            var library = new ArrayList<LibraryResponse>();
+            for (Entry e : context.library.findAll()) library.add(libraryMapper.toResponse(e));
+            var jobs = new ArrayList<JobResponse>();
+            for (Job j : context.jobs.findAll()) {
+                Entry e = context.library.findByFileId(j.fileId);
+                long elapsed =
+                        Math.max(
+                                1,
+                                System.currentTimeMillis()
+                                        - context.speedStart.getOrDefault(
+                                                j.id, System.currentTimeMillis()));
+                long speed =
+                        context.peerDownloadService.active(j.id)
+                                ? context.speedBytes.getOrDefault(j.id, new AtomicLong()).get()
+                                        * 1000
+                                        / elapsed
+                                : 0;
+                jobs.add(
+                        jobMapper.toResponse(
+                                j, e, context.peerDownloadService.completedBytes(e), speed));
             }
-            result.put("library", library); result.put("jobs", jobs); result.put("events", new ArrayList<>(context.store.snapshot().events)); return result;
+            return new PeerStatusResponse(
+                    user,
+                    tracker,
+                    connection,
+                    peerId,
+                    peerStatus,
+                    name,
+                    host,
+                    context.tcpPort,
+                    uploaded,
+                    catalog,
+                    lab,
+                    network,
+                    library,
+                    jobs,
+                    new ArrayList<>(context.events.findAll()));
         }
     }
 }

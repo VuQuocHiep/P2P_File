@@ -17,7 +17,8 @@ public final class TcpChunkClient implements AutoCloseable {
     private volatile boolean closing;
     private final AtomicLong receivedBytes = new AtomicLong();
 
-    public byte[] fetch(String host, int port, String ticket, Manifest manifest, int index) throws IOException {
+    public byte[] fetch(String host, int port, String ticket, Manifest manifest, int index)
+            throws IOException {
         int expected = manifest.length(index);
         requests.incrementAndGet();
         try (Socket socket = new Socket()) {
@@ -32,11 +33,14 @@ public final class TcpChunkClient implements AutoCloseable {
                 if (input.readUnsignedByte() != 0) throw new IOException(input.readUTF());
                 if (input.readInt() != expected) throw new IOException("Kích thước chunk sai.");
                 byte[] bytes = input.readNBytes(expected);
-                if (bytes.length != expected || !Manifest.hash(bytes).equals(manifest.hashes().get(index)))
+                if (bytes.length != expected
+                        || !Manifest.hash(bytes).equals(manifest.hashes().get(index)))
                     throw new IOException("SHA-256 chunk sai.");
                 receivedBytes.addAndGet(bytes.length);
                 return bytes;
-            } finally { sockets.remove(socket); }
+            } finally {
+                sockets.remove(socket);
+            }
         } catch (IOException e) {
             failures.incrementAndGet();
             throw e;
@@ -44,11 +48,26 @@ public final class TcpChunkClient implements AutoCloseable {
     }
 
     public Map<String, Object> metrics() {
-        return Map.of("requests", requests.get(), "failures", failures.get(), "connections", sockets.size(), "receivedBytes", receivedBytes.get());
+        return Map.of(
+                "requests",
+                requests.get(),
+                "failures",
+                failures.get(),
+                "connections",
+                sockets.size(),
+                "receivedBytes",
+                receivedBytes.get());
     }
 
-    @Override public void close() {
+    @Override
+    public void close() {
         closing = true;
-        sockets.forEach(socket -> { try { socket.close(); } catch (IOException ignored) {} });
+        sockets.forEach(
+                socket -> {
+                    try {
+                        socket.close();
+                    } catch (IOException ignored) {
+                    }
+                });
     }
 }

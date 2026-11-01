@@ -13,21 +13,41 @@ import java.util.Map;
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
     private final AdminSocketHandler handler;
-    public WebSocketConfig(AdminSocketHandler handler) { this.handler = handler; }
 
-    @Override public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        // Default origin policy is same-origin. Never use wildcard origins for cookie authentication.
-        registry.addHandler(handler, "/ws/admin").addInterceptors(new HandshakeInterceptor() {
-            @Override public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
-                    WebSocketHandler ws, Map<String, Object> attributes) {
-                if (!(request instanceof ServletServerHttpRequest servlet)) return false;
-                var session = servlet.getServletRequest().getSession(false);
-                if (!handler.allowed(session)) { response.setStatusCode(HttpStatus.UNAUTHORIZED); return false; }
-                attributes.put("httpSession", session);
-                return true;
-            }
-            @Override public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
-                    WebSocketHandler ws, Exception exception) {}
-        });
+    public WebSocketConfig(AdminSocketHandler handler) {
+        this.handler = handler;
+    }
+
+    @Override
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        // Default origin policy is same-origin. Never use wildcard origins for cookie
+        // authentication.
+        registry.addHandler(handler, "/ws/admin")
+                .addInterceptors(
+                        new HandshakeInterceptor() {
+                            @Override
+                            public boolean beforeHandshake(
+                                    ServerHttpRequest request,
+                                    ServerHttpResponse response,
+                                    WebSocketHandler ws,
+                                    Map<String, Object> attributes) {
+                                if (!(request instanceof ServletServerHttpRequest servlet))
+                                    return false;
+                                var session = servlet.getServletRequest().getSession(false);
+                                if (!handler.allowed(session)) {
+                                    response.setStatusCode(HttpStatus.UNAUTHORIZED);
+                                    return false;
+                                }
+                                attributes.put("httpSession", session);
+                                return true;
+                            }
+
+                            @Override
+                            public void afterHandshake(
+                                    ServerHttpRequest request,
+                                    ServerHttpResponse response,
+                                    WebSocketHandler ws,
+                                    Exception exception) {}
+                        });
     }
 }

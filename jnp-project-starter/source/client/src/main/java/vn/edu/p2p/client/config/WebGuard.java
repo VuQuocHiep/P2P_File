@@ -10,18 +10,24 @@ import java.io.IOException;
 
 @Component
 class WebGuard extends OncePerRequestFilter {
-    @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        response.setHeader("X-Content-Type-Options", "nosniff"); response.setHeader("X-Frame-Options", "DENY");
+        response.setHeader("X-Content-Type-Options", "nosniff");
+        response.setHeader("X-Frame-Options", "DENY");
         response.setHeader("Cache-Control", "no-cache");
-        response.setHeader("Content-Security-Policy", "default-src 'self'; connect-src 'self' ws: wss:; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'");
+        response.setHeader(
+                "Content-Security-Policy",
+                "default-src 'self'; connect-src 'self' ws: wss:; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'");
         if (request.getRequestURI().startsWith("/api/")) {
             response.setHeader("Cache-Control", "no-store");
-            if (!java.util.Set.of("GET", "HEAD", "OPTIONS").contains(request.getMethod()) && !"1".equals(request.getHeader("X-PeerMesh"))) {
-                response.sendError(403, "Thiếu header X-PeerMesh."); return;
+            if (!java.util.Set.of("GET", "HEAD", "OPTIONS").contains(request.getMethod())
+                    && !"1".equals(request.getHeader("X-PeerMesh"))) {
+                response.sendError(403, "Thiếu header X-PeerMesh.");
+                return;
             }
         }
         chain.doFilter(request, response);
     }
 }
-

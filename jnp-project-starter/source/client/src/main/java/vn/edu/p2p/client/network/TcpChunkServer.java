@@ -13,10 +13,13 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class TcpChunkServer implements AutoCloseable {
 
     private final ServerSocket listener;
-    private final ExecutorService acceptor = Executors.newSingleThreadExecutor(NamedThreads.factory("tcp-accept"));
+    private final ExecutorService acceptor =
+            Executors.newSingleThreadExecutor(NamedThreads.factory("tcp-accept"));
     private final ThreadPoolExecutor workers = NamedThreads.boundedPool("tcp-upload", 4, 16);
     private final Set<Socket> sockets = ConcurrentHashMap.newKeySet();
-    private final AtomicLong accepted = new AtomicLong(), rejected = new AtomicLong(), sentBytes = new AtomicLong();
+    private final AtomicLong accepted = new AtomicLong(),
+            rejected = new AtomicLong(),
+            sentBytes = new AtomicLong();
     private final ChunkProvider provider;
     private final int delay;
     private volatile boolean closing;
@@ -24,14 +27,26 @@ public final class TcpChunkServer implements AutoCloseable {
     private final AtomicLong injected = new AtomicLong();
 
     public void fault(String mode, int delayMs, int seconds) {
-        if (mode == null || !Set.of("NORMAL", "SLOW", "DISCONNECT", "CORRUPT").contains(mode)
-                || delayMs < 0 || delayMs > 5000 || seconds < 1 || seconds > 120)
-            throw new IllegalArgumentException("Chế độ lỗi không hợp lệ; độ trễ 0–5000 ms, thời hạn 1–120 giây.");
-        fault = new FaultState(mode, delayMs, "NORMAL".equals(mode) ? 0 : System.currentTimeMillis() + seconds * 1000L);
+        if (mode == null
+                || !Set.of("NORMAL", "SLOW", "DISCONNECT", "CORRUPT").contains(mode)
+                || delayMs < 0
+                || delayMs > 5000
+                || seconds < 1
+                || seconds > 120)
+            throw new IllegalArgumentException(
+                    "Chế độ lỗi không hợp lệ; độ trễ 0–5000 ms, thời hạn 1–120 giây.");
+        fault =
+                new FaultState(
+                        mode,
+                        delayMs,
+                        "NORMAL".equals(mode) ? 0 : System.currentTimeMillis() + seconds * 1000L);
     }
+
     public FaultState fault() {
         FaultState current = fault;
-        return current.until() > System.currentTimeMillis() ? current : new FaultState("NORMAL", 0, 0);
+        return current.until() > System.currentTimeMillis()
+                ? current
+                : new FaultState("NORMAL", 0, 0);
     }
 
     public TcpChunkServer(int port, int delay, ChunkProvider provider) throws IOException {
@@ -50,16 +65,21 @@ public final class TcpChunkServer implements AutoCloseable {
                 socket.setSoTimeout(8000);
                 sockets.add(socket);
                 accepted.incrementAndGet();
-                try { workers.execute(() -> serve(socket)); }
-                catch (RejectedExecutionException e) {
+                try {
+                    workers.execute(() -> serve(socket));
+                } catch (RejectedExecutionException e) {
                     rejected.incrementAndGet();
                     closeSocket(socket);
                 }
             } catch (IOException e) {
                 if (!closing) {
                     // A failed accept must not turn into a busy-spin loop.
-                    try { Thread.sleep(100); }
-                    catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); return; }
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
                 }
             }
         }
@@ -79,7 +99,8 @@ public final class TcpChunkServer implements AutoCloseable {
                     if ("DISCONNECT".equals(current.mode())) return;
                     if ("SLOW".equals(current.mode())) Thread.sleep(current.delayMs());
                     if ("CORRUPT".equals(current.mode()) && bytes.length > 0) {
-                        bytes = bytes.clone(); bytes[0] ^= 1;
+                        bytes = bytes.clone();
+                        bytes[0] ^= 1;
                     }
                 }
             } catch (Exception e) {
@@ -103,19 +124,49 @@ public final class TcpChunkServer implements AutoCloseable {
 
     private void closeSocket(Socket socket) {
         sockets.remove(socket);
-        try { socket.close(); } catch (IOException ignored) {}
+        try {
+            socket.close();
+        } catch (IOException ignored) {
+        }
     }
 
-    public int port() { return listener.getLocalPort(); }
-    public long sentBytes() { return sentBytes.get(); }
+    public int port() {
+        return listener.getLocalPort();
+    }
+
+    public long sentBytes() {
+        return sentBytes.get();
+    }
+
     public Map<String, Object> metrics() {
-        return Map.of("accepted", accepted.get(), "rejected", rejected.get(), "connections", sockets.size(),
-                "activeWorkers", workers.getActiveCount(), "queued", workers.getQueue().size(), "workerLimit", 4,
-                "queueLimit", 16, "sentBytes", sentBytes.get(), "injected", injected.get(),
-                "remotes", sockets.stream().map(s -> Objects.toString(s.getRemoteSocketAddress(), "")).sorted().toList());
+        return Map.of(
+                "accepted",
+                accepted.get(),
+                "rejected",
+                rejected.get(),
+                "connections",
+                sockets.size(),
+                "activeWorkers",
+                workers.getActiveCount(),
+                "queued",
+                workers.getQueue().size(),
+                "workerLimit",
+                4,
+                "queueLimit",
+                16,
+                "sentBytes",
+                sentBytes.get(),
+                "injected",
+                injected.get(),
+                "remotes",
+                sockets.stream()
+                        .map(s -> Objects.toString(s.getRemoteSocketAddress(), ""))
+                        .sorted()
+                        .toList());
     }
 
-    @Override public void close() throws IOException {
+    @Override
+    public void close() throws IOException {
         closing = true;
         listener.close();
         sockets.forEach(this::closeSocket);

@@ -3,7 +3,7 @@ package vn.edu.p2p.server.controller;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
-import vn.edu.p2p.server.dto.*;
+import vn.edu.p2p.server.dto.request.*;
 
 final class TrackerRequestAuth {
     static String token(HttpServletRequest request) {

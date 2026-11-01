@@ -6,6 +6,7 @@ import java.util.*;
 public class Entry {
     public Manifest manifest;
     public boolean complete, sharing = true;
+    public boolean scanConsent;
     public String catalogStatus = "PENDING";
     public Set<Integer> chunks = new TreeSet<>();
 }

@@ -7,10 +7,15 @@ import java.io.*;
 public final class Wire {
     public static final int MAGIC = 0x504D3031; // PM01
     public static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules();
+
     public static void write(DataOutputStream out, ChunkRequest request) throws IOException {
         byte[] json = JSON.writeValueAsBytes(request);
-        out.writeInt(MAGIC); out.writeInt(json.length); out.write(json); out.flush();
+        out.writeInt(MAGIC);
+        out.writeInt(json.length);
+        out.write(json);
+        out.flush();
     }
+
     public static ChunkRequest read(DataInputStream in) throws IOException {
         if (in.readInt() != MAGIC) throw new IOException("Sai phiên bản giao thức.");
         int length = in.readInt();
@@ -19,5 +24,6 @@ public final class Wire {
         if (bytes.length != length) throw new EOFException("Header thiếu dữ liệu.");
         return JSON.readValue(bytes, ChunkRequest.class);
     }
+
     private Wire() {}
 }

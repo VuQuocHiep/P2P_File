@@ -11,8 +11,8 @@ final class SnapshotConnection {
     long ping, lastRefresh;
     ScheduledFuture<?> task;
     final AtomicBoolean refreshPending = new AtomicBoolean();
+
     SnapshotConnection(WebSocketSession raw) {
         socket = new ConcurrentWebSocketSessionDecorator(raw, 2000, 1024 * 1024);
     }
 }
-

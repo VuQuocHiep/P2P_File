@@ -1,9 +1,10 @@
 package vn.edu.p2p.client.controller;
 
-import vn.edu.p2p.client.service.PeerEngine;
-import vn.edu.p2p.client.dto.*;
+import vn.edu.p2p.client.service.PeerHealthService;
+import vn.edu.p2p.client.dto.request.*;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.p2p.client.dto.response.HealthResponse;
 import java.util.*;
 
 import static vn.edu.p2p.client.controller.PeerRequestAuth.auth;
@@ -11,7 +12,14 @@ import static vn.edu.p2p.client.controller.PeerRequestAuth.auth;
 @RestController
 @RequestMapping("/api")
 public class PeerHealthController {
-    private final PeerEngine engine;
-    public PeerHealthController(PeerEngine engine) { this.engine = engine; }
-    @GetMapping("/health") Object health() { return Map.of("status", "ok", "service", "PeerMesh Peer"); }
+    private final PeerHealthService service;
+
+    public PeerHealthController(PeerHealthService service) {
+        this.service = service;
+    }
+
+    @GetMapping("/health")
+    public HealthResponse health() {
+        return service.health();
+    }
 }

@@ -13,7 +13,13 @@ public final class NamedThreads {
     }
 
     public static ThreadPoolExecutor boundedPool(String prefix, int size, int queueCapacity) {
-        return new ThreadPoolExecutor(size, size, 0, TimeUnit.SECONDS,
-                new ArrayBlockingQueue<>(queueCapacity), factory(prefix), new ThreadPoolExecutor.AbortPolicy());
+        return new ThreadPoolExecutor(
+                size,
+                size,
+                0,
+                TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(queueCapacity),
+                factory(prefix),
+                new ThreadPoolExecutor.AbortPolicy());
     }
 }

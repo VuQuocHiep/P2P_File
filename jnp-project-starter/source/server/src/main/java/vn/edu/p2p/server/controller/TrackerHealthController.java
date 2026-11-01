@@ -1,16 +1,24 @@
 package vn.edu.p2p.server.controller;
 
-import vn.edu.p2p.server.service.TrackerService;
+import vn.edu.p2p.server.service.TrackerHealthService;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.p2p.server.dto.response.HealthResponse;
 import java.util.*;
-import vn.edu.p2p.server.dto.*;
+import vn.edu.p2p.server.dto.request.*;
 
 import static vn.edu.p2p.server.controller.TrackerRequestAuth.token;
 
 @RestController
 @RequestMapping("/api")
 public class TrackerHealthController {
-    private final TrackerService service;
-    public TrackerHealthController(TrackerService service) { this.service = service; }
-    @GetMapping("/health") Object health() { return Map.of("status", "ok", "service", "PeerMesh Tracker"); }
+    private final TrackerHealthService service;
+
+    public TrackerHealthController(TrackerHealthService service) {
+        this.service = service;
+    }
+
+    @GetMapping("/health")
+    public HealthResponse health() {
+        return service.health();
+    }
 }

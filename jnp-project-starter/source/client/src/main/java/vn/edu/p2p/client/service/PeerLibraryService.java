@@ -1,7 +1,7 @@
 package vn.edu.p2p.client.service;
 
 import vn.edu.p2p.common.protocol.ChunkRequest;
-import vn.edu.p2p.client.repository.PeerStore;
+import vn.edu.p2p.client.util.AtomicFiles;
 import com.fasterxml.jackson.databind.*;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.p2p.common.model.Manifest;
@@ -10,79 +10,168 @@ import java.io.*;
 import java.net.*;
 import java.nio.file.*;
 import java.util.*;
+import org.springframework.stereotype.Service;
+import vn.edu.p2p.client.dto.response.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
-final class PeerLibraryService {
+@Service
+public class PeerLibraryService {
     private final PeerContext context;
-    PeerLibraryService(PeerContext context) { this.context = context; }
+
+    public PeerLibraryService(PeerContext context) {
+        this.context = context;
+    }
+
     void advertise(String fileId) throws Exception {
         Map<String, Object> body;
-        synchronized (context.store) {
-            Entry entry = context.store.snapshot().library.get(fileId);
+        synchronized (context.storage.monitor()) {
+            Entry entry = context.library.findByFileId(fileId);
             if (entry == null || !entry.sharing) return;
-            body = Map.of("peerId", context.store.snapshot().peerId, "manifest", entry.manifest, "chunks", new ArrayList<>(entry.chunks));
+            body =
+                    Map.of(
+                            "peerId",
+                            context.profile.getPeerId(),
+                            "manifest",
+                            entry.manifest,
+                            "chunks",
+                            new ArrayList<>(entry.chunks),
+                            "scanConsent", entry.scanConsent);
         }
-        var result = context.tracker.call("POST", "/api/files", body);
-        synchronized (context.store) { Entry e = context.store.snapshot().library.get(fileId); if (e != null) { e.catalogStatus = result.path("status").asText(); context.store.save(); } }
-    }
-    Object upload(MultipartFile upload) throws Exception {
-        context.peerSessionService.ready(); if (upload.isEmpty()) throw new IllegalArgumentException("Hãy chọn file có dữ liệu.");
-        String name = Optional.ofNullable(upload.getOriginalFilename()).orElse("file.bin").replace('\\', '/');
-        name = name.substring(name.lastIndexOf('/') + 1);
-        Path temporary = Files.createTempFile(context.store.root(), "upload-", ".tmp");
+        JsonNode result;
         try {
-            upload.transferTo(temporary); Manifest manifest = Manifest.create(temporary, name);
-            synchronized (context.store) {
-                Entry previous = context.store.snapshot().library.get(manifest.id());
-                if (previous == null) { previous = new Entry(); previous.manifest = manifest; }
-                if (context.store.snapshot().jobs.values().stream().anyMatch(j -> j.fileId.equals(manifest.id()) && context.running.contains(j.id)))
-                    throw new IllegalArgumentException("File đang tải. Hãy tạm dừng trước khi thêm file này.");
-                PeerStore.atomicMove(temporary, context.store.blob(manifest.id())); previous.complete = true; previous.sharing = true;
-                previous.chunks.clear(); for (int i = 0; i < manifest.hashes().size(); i++) previous.chunks.add(i);
-                context.store.snapshot().library.put(manifest.id(), previous);
-                context.store.event("Chia sẻ " + manifest.name()); context.store.save();
-            }
-            advertise(manifest.id()); return Map.of("message", "Đã chia sẻ. File mới cần quản trị viên duyệt.", "manifest", manifest);
-        } finally { Files.deleteIfExists(temporary); }
-    }
-    void sharing(String fileId, boolean enabled) throws Exception {
-        context.peerSessionService.validId(fileId); context.peerSessionService.ready(); String peerId;
-        synchronized (context.store) {
-            Entry entry = context.store.snapshot().library.get(fileId); if (entry == null) throw new IllegalArgumentException("File không tồn tại.");
-            entry.sharing = enabled; peerId = context.store.snapshot().peerId; context.store.save();
+            result = context.tracker.call("POST", "/api/files", body);
+        } catch (vn.edu.p2p.client.exception.TrackerFailure failure) {
+            if (failure.status == 410) context.peerDeletionService.apply(List.of(fileId));
+            throw failure;
         }
-        if (enabled) advertise(fileId); else context.tracker.call("DELETE", "/api/files/" + fileId + "/holders/" + peerId, null);
+        synchronized (context.storage.monitor()) {
+            Entry e = context.library.findByFileId(fileId);
+            if (e != null) {
+                e.catalogStatus = result.path("status").asText();
+                context.storage.saveCheckpoint();
+            }
+        }
     }
+
+    public UploadResponse upload(MultipartFile upload) throws Exception {
+        return upload(upload, false);
+    }
+
+    public UploadResponse upload(MultipartFile upload, boolean scanConsent) throws Exception {
+        context.peerSessionService.ready();
+        if (upload.isEmpty()) throw new IllegalArgumentException("Hãy chọn file có dữ liệu.");
+        String name =
+                Optional.ofNullable(upload.getOriginalFilename())
+                        .orElse("file.bin")
+                        .replace('\\', '/');
+        name = name.substring(name.lastIndexOf('/') + 1);
+        Path temporary = Files.createTempFile(context.storage.root(), "upload-", ".tmp");
+        try {
+            upload.transferTo(temporary);
+            Manifest manifest = Manifest.create(temporary, name);
+            synchronized (context.storage.monitor()) {
+                if (context.storage.isDeleted(manifest.id()))
+                    throw new IllegalArgumentException("File đã được quản trị viên xóa toàn mạng.");
+                Entry previous = context.library.findByFileId(manifest.id());
+                if (previous == null) {
+                    previous = new Entry();
+                    previous.manifest = manifest;
+                }
+                if (context.jobs.findAll().stream()
+                        .anyMatch(
+                                j ->
+                                        j.fileId.equals(manifest.id())
+                                                && context.running.contains(j.id)))
+                    throw new IllegalArgumentException(
+                            "File đang tải. Hãy tạm dừng trước khi thêm file này.");
+                AtomicFiles.move(temporary, context.storage.blob(manifest.id()));
+                previous.complete = true;
+                previous.scanConsent = scanConsent;
+                previous.sharing = true;
+                previous.chunks.clear();
+                for (int i = 0; i < manifest.hashes().size(); i++) previous.chunks.add(i);
+                context.library.save(manifest.id(), previous);
+                context.events.append("Chia sẻ " + manifest.name());
+                context.storage.saveCheckpoint();
+            }
+            advertise(manifest.id());
+            return new UploadResponse("Đã chia sẻ. File mới cần quản trị viên duyệt.", manifest);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
+    public void sharing(String fileId, boolean enabled) throws Exception {
+        context.peerSessionService.validId(fileId);
+        context.peerSessionService.ready();
+        String peerId;
+        synchronized (context.storage.monitor()) {
+            Entry entry = context.library.findByFileId(fileId);
+            if (entry == null) throw new IllegalArgumentException("File không tồn tại.");
+            entry.sharing = enabled;
+            peerId = context.profile.getPeerId();
+            context.storage.saveCheckpoint();
+        }
+        if (enabled) advertise(fileId);
+        else context.tracker.call("DELETE", "/api/files/" + fileId + "/holders/" + peerId, null);
+    }
+
+    public void scanConsent(String fileId, boolean enabled) throws Exception {
+        context.peerSessionService.validId(fileId);
+        context.peerSessionService.ready();
+        synchronized (context.storage.monitor()) {
+            Entry entry = context.library.findByFileId(fileId);
+            if (entry == null) throw new IllegalArgumentException("File không tồn tại.");
+            entry.scanConsent = enabled;
+            context.events.append((enabled ? "Cho phép" : "Tắt cho phép") + " gửi VirusTotal: " + entry.manifest.name());
+            context.storage.saveCheckpoint();
+        }
+        advertise(fileId);
+    }
+
     byte[] readChunk(ChunkRequest request) throws Exception {
         context.peerSessionService.validId(request.fileId());
         String peerId;
-        synchronized (context.store) { peerId = context.store.snapshot().peerId; }
-        context.tracker.call("POST", "/api/tickets/authorize", Map.of(
-                "ticket", request.ticket(), "peerId", peerId, "fileId", request.fileId()));
-        synchronized (context.store) {
-            Entry entry = context.store.snapshot().library.get(request.fileId());
+        synchronized (context.storage.monitor()) {
+            peerId = context.profile.getPeerId();
+        }
+        context.tracker.call(
+                "POST",
+                "/api/tickets/authorize",
+                Map.of("ticket", request.ticket(), "peerId", peerId, "fileId", request.fileId()));
+        synchronized (context.storage.monitor()) {
+            Entry entry = context.library.findByFileId(request.fileId());
             if (entry == null || !entry.sharing || !entry.chunks.contains(request.chunk()))
                 throw new IOException("Peer không chia sẻ chunk này.");
             int length = entry.manifest.length(request.chunk());
             byte[] bytes;
             if (entry.complete) {
                 bytes = new byte[length];
-                try (var file = new RandomAccessFile(context.store.blob(request.fileId()).toFile(), "r")) {
+                try (var file =
+                        new RandomAccessFile(
+                                context.storage.blob(request.fileId()).toFile(), "r")) {
                     file.seek((long) request.chunk() * entry.manifest.chunkSize());
                     file.readFully(bytes);
                 }
-            } else bytes = Files.readAllBytes(context.store.chunk(request.fileId(), request.chunk()));
-            if (bytes.length != length || !Manifest.hash(bytes).equals(entry.manifest.hashes().get(request.chunk())))
+            } else
+                bytes =
+                        Files.readAllBytes(
+                                context.storage.chunk(request.fileId(), request.chunk()));
+            if (bytes.length != length
+                    || !Manifest.hash(bytes).equals(entry.manifest.hashes().get(request.chunk())))
                 throw new IOException("Chunk nguồn bị hỏng.");
             return bytes;
         }
     }
-    LocalFile localFile(String id) {
-        context.peerSessionService.validId(id); synchronized (context.store) {
-            Entry entry = context.store.snapshot().library.get(id);
-            if (entry == null || !entry.complete) throw new IllegalArgumentException("File chưa hoàn tất.");
-            return new LocalFile(context.store.blob(id), entry.manifest.name());
+
+    public LocalFile localFile(String id) {
+        context.peerSessionService.validId(id);
+        synchronized (context.storage.monitor()) {
+            Entry entry = context.library.findByFileId(id);
+            if (entry == null || !entry.complete)
+                throw new IllegalArgumentException("File chưa hoàn tất.");
+            return new LocalFile(context.storage.blob(id), entry.manifest.name());
         }
     }
 }

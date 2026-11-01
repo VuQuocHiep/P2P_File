@@ -7,4 +7,5 @@ public class State {
     public Map<String, Entry> library = new LinkedHashMap<>();
     public Map<String, Job> jobs = new LinkedHashMap<>();
     public List<String> events = new ArrayList<>();
+    public Set<String> deletedFiles = new TreeSet<>();
 }

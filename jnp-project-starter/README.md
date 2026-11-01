@@ -1,5 +1,7 @@
 # PeerMesh — Chia sẻ file P2P có quản trị
 
+Đọc [ARCHITECTURE.md](ARCHITECTURE.md) để xem luồng controller → service → repository/mapper và vị trí từng phần giao diện.
+
 Bài tập lớn Lập trình mạng. Java 17 + Spring Boot, giao diện web tiếng Việt, truyền file trực tiếp giữa các peer qua TCP socket.
 
 ## Thông tin nhóm
@@ -45,7 +47,7 @@ Web sử dụng WebSocket để nhận snapshot trực tiếp mỗi giây. Trìn
 | Điều phối | HTTP / JSON |
 | Cập nhật thời gian thực | Spring WebSocket / RFC 6455 |
 | Dữ liệu P2P | Java TCP Socket, giao thức PM01 |
-| Lưu trữ server | H2 + Spring JDBC, snapshot JSON |
+| Lưu trữ server | H2 + Spring Data JPA, bảng riêng cho account, peer, file, transfer và audit |
 | Lưu trữ peer | File content-addressed, chunk và checkpoint JSON |
 | Toàn vẹn / mật khẩu | SHA-256 / BCrypt |
 | Giao diện | HTML, CSS, JavaScript thuần, không cần CDN / Node.js |
@@ -106,17 +108,23 @@ Trong `source/server/src/main/java/vn/edu/p2p/server/`:
 
 - `controller/`: HTTP endpoint, chuyển request tới service.
 - `service/`: nghiệp vụ điều phối, xác thực và phê duyệt.
-- `repository/`: lưu / đọc registry H2.
-- `model/`, `dto/`: mô hình lưu trữ và request HTTP.
+- `migration/`: chuyển dữ liệu registry cũ; tách khỏi các service nghiệp vụ.
+- `repository/` (server): `AccountRepository`, `PeerRepository`, `FileRepository`, `TransferRepository`, `AuditRepository` kế thừa `JpaRepository`; Spring Data JPA cung cấp phần triển khai. Client có `PeerProfileRepository`, `LibraryRepository`, `DownloadJobRepository`, `PeerEventRepository`; chúng dùng chung `storage/PeerStorage` để lưu profile và checkpoint trên ổ đĩa.
+- `model/`: dữ liệu runtime; `migration/legacy/` chứa các model JSON cũ.
+- `entity/` (server): entity cho các bảng nghiệp vụ riêng; `RegistryEntity` giữ bản snapshot cũ để migration, `MigrationEntity` đánh dấu lần chuyển dữ liệu.
+
+- `dto/request/`: DTO nhận dữ liệu request HTTP.
+- `dto/response/`: DTO trả dữ liệu HTTP, giữ nguyên tên trường và cấu trúc JSON của API.
+- `mapper/`: chuyển model hoặc JSON từ tracker sang response DTO; service giữ kiểm tra quyền, tính toán nghiệp vụ và khóa đồng bộ.
 - `config/`: cấu hình WebSocket, header bảo vệ HTTP.
 - `websocket/`: xác thực và đẩy dashboard cho quản trị viên.
 - `exception/`: chuyển lỗi thành phản hồi HTTP.
 
 Trong `source/client/src/main/java/vn/edu/p2p/client/` có các package tương tự; `network/` chứa `TcpChunkServer`, `TcpChunkClient`, `TrackerGateway`, còn `websocket/` đẩy trạng thái peer lên web.
 
-Mỗi model và DTO nằm trong một file Java riêng, ví dụ `model/Account.java`, `model/SharedFile.java`, `dto/Login.java`, `dto/Advertisement.java` ở server; `model/Entry.java`, `model/Job.java`, `dto/Download.java` ở client.
+Mỗi model và DTO nằm trong một file Java riêng, ví dụ `entity/AccountEntity.java`, `entity/FileEntity.java`, `dto/request/Login.java`, `dto/request/Advertisement.java` ở server; `model/Entry.java`, `model/Job.java`, `dto/request/Download.java` ở client.
 
-Controller được chia theo chức năng: xác thực, peer, file/thư viện, tải file, quản trị và mô phỏng. `TrackerService` và `PeerEngine` giữ vai trò điều phối, chuyển lời gọi đến các service chuyên trách trong cùng package. `TrackerContext` và `PeerContext` giữ trạng thái dùng chung; các khóa đồng bộ, lịch heartbeat, giới hạn worker và vòng đời tài nguyên được giữ nguyên.
+Controller được chia theo chức năng và gọi trực tiếp service tương ứng do Spring quản lý bằng `@Service`, ví dụ `TrackerPeerController → TrackerPeerService`, `PeerLibraryController → PeerLibraryService`. Service nhận request DTO và trả response DTO; controller quản lý HTTP/session. `TrackerContext` giữ session/ticket trong RAM và một khóa dùng chung cho tracker service; khóa chỉ được nhả sau khi transaction JPA commit hoặc rollback. `PeerContext` giữ trạng thái peer; service truy cập dữ liệu qua interface repository, còn `PeerRuntime` quản lý TCP, lịch heartbeat, telemetry và shutdown; các giới hạn worker và cơ chế đồng bộ được giữ nguyên.
 
 Trong `common/`: `model/Manifest`, `protocol/Wire` và `protocol/ChunkRequest`, `concurrent/NamedThreads`, `realtime/SnapshotSocket` và `realtime/SnapshotConnection`. Hai lớp Application ở package gốc để Spring quét các package con.
 
@@ -231,6 +239,73 @@ API mới (cần session đăng nhập peer và tài khoản / peer được duy
 - `POST /api/lab/benchmark` với `{ "fileId": "<sha256>" }`; kết quả / trạng thái ở `GET /api/status` → `lab.benchmark`.
 - `POST /api/lab/fault` với `{ "mode": "NORMAL|SLOW|DISCONNECT|CORRUPT", "delayMs": 1500, "seconds": 30 }`. API giới hạn thời hạn 1–120 giây, độ trễ 0–5000 ms. Mô phỏng áp dụng cho mọi yêu cầu chunk được nguồn xác thực trong thời hạn.
 - `lab.links`, `lab.recentLinks`, `lab.sourceStats`, `lab.samples`, `lab.fault` được đưa vào snapshot WebSocket hiện có. Dữ liệu lab chỉ giữ trong RAM, không chứa vé tải.
+
+## Quét mã độc bằng VirusTotal (tùy chọn)
+
+Admin có thể **duyệt file mà không quét**, hoặc bấm **Quét file** trong Danh mục file. Quét không tự chạy khi chia sẻ hay khi duyệt. Không cần admin chọn lại bản file: server yêu cầu peer đang giữ nội dung tự gửi lên khi cần.
+
+### Cấu hình và quyền gửi file
+
+Đặt key trên máy tracker trước khi khởi động, trong cùng cửa sổ terminal. Không đưa key vào Git, JavaScript, ảnh báo cáo hoặc chat.
+
+```powershell
+$env:VIRUSTOTAL_API_KEY = 'API_KEY_CUA_BAN'
+powershell -ExecutionPolicy Bypass -File source/run.ps1 -Role server
+```
+
+Nếu dùng CMD:
+
+```cmd
+set "VIRUSTOTAL_API_KEY=API_KEY_CUA_BAN"
+powershell -ExecutionPolicy Bypass -File source/run.ps1 -Role server
+```
+
+Key lấy từ menu tài khoản [VirusTotal](https://www.virustotal.com/). Cần chạy cả server và peer bằng bản mới sau khi build. Thiết lập quản trị viên lần đầu vẫn theo phần khởi động server ở trên.
+
+Phía peer, khi thêm file, tích **Cho phép gửi file lên VirusTotal khi admin yêu cầu** nếu đồng ý. Với file đã có, vào **Thư viện chia sẻ → Cho phép VirusTotal**; có thể tắt lại ở cùng chỗ. Mặc định không cho phép, bao gồm các file từ phiên bản cũ và file tải từ peer khác. Quyền được lưu theo file trên từng peer và đồng bộ cùng manifest. Chỉ một nguồn có đủ file, đang chia sẻ và đã cho phép mới được giao yêu cầu gửi. Nội dung tải lên VirusTotal có thể được chia sẻ với đối tác/khách hàng của dịch vụ; không bật cho file riêng tư hoặc file không có quyền chia sẻ.
+
+### Luồng xử lý tự động
+
+1. Admin bấm **Quét file**. Server lưu yêu cầu trong H2 rồi trả về ngay, không chờ peer hay VirusTotal trong HTTP request này.
+2. Worker tra báo cáo theo SHA-256. Nếu đã có kết quả thì hiển thị luôn, không cần gửi nội dung file.
+3. Nếu chưa có báo cáo, trạng thái chuyển thành **Đang chờ nguồn cho phép quét**. Nguồn offline, chưa đủ file hoặc chưa đồng ý thì yêu cầu tiếp tục chờ; không hiện trình chọn file ở máy admin.
+4. Peer nhận việc qua kết nối HTTP chủ động khi heartbeat, dùng worker riêng để không chặn heartbeat hoặc truyền P2P. Server chỉ cấp một lease có thời hạn cho một nguồn đủ điều kiện. Peer kiểm tra lại quyền cục bộ trước khi gửi bản file do ứng dụng quản lý.
+5. Server kiểm tra tài khoản/peer, lease, quyền đã đồng bộ, kích thước và SHA-256 nội dung. Chỉ file khớp manifest và tối đa **32 MiB** mới được gửi sang VirusTotal. File không được thực thi hay lưu vào thư viện tracker.
+6. Server tự theo dõi phiên quét và tự lấy báo cáo theo hash. Trang quản trị cập nhật qua WebSocket/polling, không cần admin bấm lấy kết quả từng bước. Worker dùng khoảng cách 16 giây giữa các lượt; chốt quota dùng chung chặn gọi cách nhau dưới 15 giây.
+
+Mất kết nối khi nguồn đang gửi: lease hết hạn sau khoảng 120 giây, peer online khác có quyền có thể nhận lại. Peer cũng trả việc khi không đọc/gửi được file; retry có khoảng chờ 30–60 giây. Lỗi key, mạng hoặc quota được hiển thị, tự thử lại tối đa 5 lần rồi dừng để admin sửa cấu hình và bấm quét lại. Yêu cầu chưa hoàn tất, lease, mã phiên VirusTotal và kết quả đều lưu trong H2. Sau khi server khởi động lại, peer cần đăng nhập lại như cơ chế session hiện có; công việc đang chờ sẽ tiếp tục. Admin có thể **Hủy quét**; nội dung đã gửi ra VirusTotal trước đó không thể thu hồi.
+
+| Kết quả | Ý nghĩa / thao tác |
+|---|---|
+| Chưa kiểm tra / chưa có dữ liệu | Không kết luận an toàn; vẫn duyệt thủ công được |
+| Đang chờ nguồn / peer đang gửi / VirusTotal đang quét | Theo dõi tự động; vẫn có thể duyệt thủ công khi chưa có cảnh báo |
+| Xanh — Chưa phát hiện mã độc | Báo cáo chưa có malicious/suspicious; không đảm bảo an toàn tuyệt đối |
+| Đỏ — Phát hiện mã độc | Tự chuyển file sang BLOCKED và không cho duyệt |
+| Cam — Có dấu hiệu đáng ngờ | Tự chặn duyệt để kiểm tra thêm |
+| Quét gặp lỗi | Hiện lý do, có thể hủy hoặc thử lại; lỗi không được đổi thành kết quả sạch |
+
+Tên engine, tên phát hiện, số lượng engine, thời điểm tra và thời điểm báo cáo VT được lưu để trình bày. Báo cáo cũ có cảnh báo được giữ khi lần kiểm tra lại chưa kết luận được; chỉ báo cáo mới không có phát hiện mới có thể gỡ điều kiện chặn duyệt. File vẫn cần admin mở lại sau khi đã bị BLOCKED. Link **Mở báo cáo VirusTotal** cho phép đối chiếu trực tiếp.
+
+Public API có hạn mức 4 request/phút và 500 request/ngày, không dùng cho sản phẩm/dịch vụ thương mại: [điều khoản API](https://docs.virustotal.com/reference/public-vs-premium-api). Chỉ tự gửi nội dung tối đa 32 MiB trong phiên bản này; file lớn hơn vẫn tra hash được, nếu chưa có dữ liệu thì thông báo giới hạn và admin có thể duyệt thủ công.
+
+### Demo cho giảng viên
+
+1. Thêm file thường trên peer và bật quyền VirusTotal. Duyệt một file khác chưa quét để cho thấy quét là tùy chọn.
+2. Admin bấm **Quét file**. Khi cần nội dung, quan sát trạng thái chờ nguồn; peer tự gửi mà admin không chọn lại file.
+3. Có thể thử nguồn offline hoặc tắt quyền gửi trước; bật peer/cho phép lại để yêu cầu tiếp tục. Chỉ có nguồn online nhưng chưa cho phép thì vẫn chờ.
+4. Khi hoàn tất, xem nhãn, số công cụ, danh sách engine và mở báo cáo. `UNKNOWN` không phải file sạch. Kết quả API thật phụ thuộc file và báo cáo tại VirusTotal.
+5. Dùng mẫu vô hại [EICAR chính thức](https://www.eicar.org/download-anti-malware-testfile/) nếu hệ thống cho phép giữ mẫu để kiểm tra cảnh báo. Defender có thể cách ly mẫu; không cần tắt bảo vệ. Không lấy malware thật để demo.
+
+### API và kiểm thử
+
+- ADMIN: `POST /api/admin/files/{sha256}/scan-request` tạo yêu cầu; `DELETE` cùng URL để hủy.
+- Peer đã đăng nhập và được duyệt: `POST /api/peers/{peerId}/scan-jobs/claim` nhận tối đa một việc. Lease chỉ trả cho peer sở hữu, không đưa vào dashboard.
+- `POST /api/peers/{peerId}/scan-jobs/{sha256}/content`: multipart `file`, header `X-Scan-Lease`; server xác minh trước khi gửi ra ngoài.
+- `POST /api/peers/{peerId}/scan-jobs/{sha256}/release` trả việc, cùng header lease.
+- Peer cục bộ: `PATCH /api/library/{sha256}/scan-consent`, JSON `{"enabled":true|false}`; multipart thêm file hỗ trợ `scanConsent=true`.
+- Tất cả mutation giữ xác thực hiện có và header `X-PeerMesh: 1`. API key chỉ tồn tại trên server.
+
+Kiểm thử dùng phản hồi VirusTotal giả lập, không gửi tài liệu thật ra dịch vụ. Sau khi package, có thể chạy `python source/server/src/test/resources/scan-workflow.py` để thử hai tiến trình thật, chờ quyền gửi, khởi động lại tracker, tự upload và tự lấy báo cáo với API giả lập cục bộ. `ScanJobIntegrationTest` kiểm tra quyền, hàng chờ, lease, sai hash, hủy, tự lấy kết quả và chặn file; `PeerMalwareServiceTest` kiểm tra peer không tiết lộ file khi chưa cho phép. Tài liệu [tra hash](https://docs.virustotal.com/reference/file-info), [upload](https://docs.virustotal.com/reference/files-scan), [chia sẻ dữ liệu](https://docs.virustotal.com/docs/how-it-works).
 
 ## Chạy trên nhiều máy LAN
 
@@ -387,7 +462,7 @@ E2E sử dụng HTTP 18080–18083, TCP 19001–19003, dữ liệu riêng ở `s
 - TCP / HTTP mặc định chưa mã hóa; TLS, HTTPS, phân quyền nhóm file và giới hạn băng thông toàn cục là hướng mở rộng.
 - Khi tracker không hoạt động, việc cấp / xác thực vé dừng; các phần đã tải vẫn giữ. Sau restart tracker cần đăng nhập lại.
 - Tốc độ là trung bình từ lần bắt đầu / tiếp tục phiên tải; dữ liệu gửi tính trong lần chạy peer hiện tại. Server nhận tiến độ do peer báo cáo.
-- H2 lưu registry dạng snapshot JSON trong một bản ghi, phù hợp quy mô bài tập. Có thể chuẩn hóa bảng và tối ưu quảng bá chunk khi mở rộng.
+- H2 lưu account, peer, file, transfer và audit ở các bảng riêng qua JPA. Manifest và danh sách chunk theo holder nằm trong các cột JSON của từng file; có thể chuẩn hóa tiếp khi cần truy vấn từng chunk bằng SQL.
 - Chưa có đổi / quên mật khẩu, tự phát hiện IP LAN hoặc xóa dữ liệu trên giao diện. Khóa / ẩn / dừng chia sẻ có thể khôi phục.
 - Trước khi nộp: điền thông tin nhóm, thêm ảnh demo thực tế, thử trên nhiều máy LAN, phân chia công việc và giải thích phần code phụ trách.
 
@@ -398,3 +473,13 @@ E2E sử dụng HTTP 18080–18083, TCP 19001–19003, dữ liệu riêng ở `s
 - [Java 17 MessageDigest API](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/MessageDigest.html)
 - [Spring Framework 6.2 — WebSocket server](https://docs.spring.io/spring-framework/reference/6.2/web/websocket/server.html)
 - [H2 Database](https://h2database.com/html/main.html)
+
+Khi nâng cấp từ snapshot registry cũ, `migration/LegacyRegistryMigration` chuyển dữ liệu sang các bảng `tracker_accounts`, `tracker_peers`, `tracker_files`, `tracker_transfers`, `tracker_audit` trong một transaction. Bản JSON trong `registry` được giữ nguyên; bảng `tracker_migrations` đánh dấu để không nhập lại sau restart. Migration lỗi sẽ rollback toàn bộ. Session và vé tải vẫn chỉ nằm trong RAM, peer được đặt offline khi tracker khởi động lại.
+
+### Xóa file toàn mạng
+
+Trong danh mục file của quản trị viên, nút **Xóa file** nằm cạnh **Chờ duyệt**. Sau xác nhận, `DELETE /api/admin/files/{id}` xóa file khỏi danh mục, thu hồi vé tải và lưu dấu xóa bền vững trong `tracker_file_deletions`. Peer không thể tự quảng bá lại nội dung đã bị xóa.
+
+Peer nhận danh sách ID qua `GET /api/files/deletions` khi đăng nhập và theo heartbeat. Peer đang online dừng các worker của file đó, bỏ phiên tải/thư viện và xóa bản `blobs/`, `chunks/`, file lắp ghép do ứng dụng quản lý. Peer offline xử lý khi kết nối và đăng nhập lại; phiên bản peer cũ cần được cập nhật để thực hiện lệnh này. Những file đang bị hệ điều hành giữ mở được đưa vào trạng thái chờ và thử xóa lại. Dấu xóa trong checkpoint ngăn file/phiên tải xuất hiện lại sau restart.
+
+File gốc ở đường dẫn người dùng chọn upload, hoặc bản tải riêng vào thư mục bên ngoài dữ liệu peer, không thuộc phạm vi xóa. Lệnh xóa không thể hoàn tác trong giao diện; ID nội dung đã bị xóa tiếp tục bị tracker từ chối quảng bá.
