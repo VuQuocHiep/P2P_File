@@ -1,94 +1,79 @@
-'use strict';
+import { $ } from '/assets/js/dom.js';
+import { UI, initializeUI } from '/assets/js/ui.js';
+import { Requests } from '/assets/js/requests.js';
+import { createAdminState } from './state.js';
+import { createAdminRenderer } from './views/page.js';
+import { createAdminData } from './data.js';
+import { createAdminChannel } from './realtime.js';
+import { createAdminAuth } from './auth.js';
+import { createFileActions } from './actions/files.js';
 
-document.querySelector('#login-form').addEventListener('submit', async (event) => {
+initializeUI();
+const model = createAdminState();
+const renderPage = createAdminRenderer(model);
+const requests = new Requests(render);
+const live = createAdminChannel(
+  (next) => data.acceptSnapshot(next),
+  () => auth.showLogin(),
+);
+const data = createAdminData({ model, render, showLogin: () => auth.showLogin() });
+const auth = createAdminAuth({ model, live, data, requests });
+const actions = createFileActions({ model, data, requests, render });
+
+function render() {
+  requests.restore();
+  renderPage();
+  requests.sync();
+}
+
+$('#login-form').addEventListener('submit', (event) => {
   event.preventDefault();
-  let button = event.submitter;
-  button.disabled = true;
-  try {
-    let result = await UI.api('/api/auth/login', {
-      method: 'POST',
-      body: { username: event.target.username.value, password: event.target.password.value },
-    });
-    if (result.user.role !== 'ADMIN') {
-      await UI.api('/api/auth/logout', { method: 'POST', body: {} });
-      throw new Error('Tài khoản này không có quyền quản trị.');
-    }
-    event.target.password.value = '';
-    showApp(result.user);
-  } catch (e) {
-    let error = document.querySelector('#login-error');
-    error.textContent = e.message;
-    error.classList.remove('hidden');
-  } finally {
-    button.disabled = false;
-  }
+  auth.login(event.target).catch((error) => UI.toast(error.message, true));
+});
+$('#logout').addEventListener('click', () =>
+  auth.logout().catch((error) => UI.toast(error.message, true)),
+);
+$('#refresh').addEventListener('click', () => {
+  if (!live.refresh()) data.refresh();
 });
 
 document.addEventListener('click', async (event) => {
   const button = event.target.closest('button');
   if (!button) return;
   if (button.dataset.tab || button.dataset.goto) {
-    current = button.dataset.tab || button.dataset.goto;
+    model.current = button.dataset.tab || button.dataset.goto;
     render();
   }
-  if (button.dataset.action === 'moderate') {
-    button.disabled = true;
-    try {
-      await UI.api(`/api/admin/${button.dataset.kind}/${encodeURIComponent(button.dataset.id)}`, {
-        method: 'PATCH',
-        body: { status: button.dataset.status },
-      });
-      UI.toast('Đã cập nhật phê duyệt.');
-      await refresh();
-    } catch (e) {
-      UI.toast(e.message, true);
-    } finally {
-      button.disabled = false;
-    }
-  }
-  if (button.dataset.action === 'delete-file') {
-    const file = data?.files.find((f) => f.manifest.id === button.dataset.id);
-    const name = file?.manifest.name || button.dataset.id;
-    if (
-      !window.confirm(
-        `Xóa file “${name}” khỏi toàn mạng?\n\nCác bản file/chunk do ứng dụng quản lý trên peer sẽ bị xóa. Peer offline sẽ xử lý khi kết nối lại. File gốc bên ngoài thư mục dữ liệu peer và bản bạn đã lưu riêng không bị xóa.\n\nKhông thể hoàn tác thao tác này.`,
-      )
-    )
-      return;
-    button.disabled = true;
-    try {
-      const result = await UI.api(`/api/admin/files/${encodeURIComponent(button.dataset.id)}`, {
-        method: 'DELETE',
-      });
-      UI.toast(result.message);
-      await refresh();
-    } catch (error) {
-      UI.toast(error.message, true);
-    } finally {
-      button.disabled = false;
-    }
-  }
-});
-
-document.querySelector('#logout').addEventListener('click', async () => {
   try {
-    await UI.api('/api/auth/logout', { method: 'POST', body: {} });
-    showLogin();
-  } catch (e) {
-    UI.toast(e.message, true);
+    const { action, id, kind, status } = button.dataset;
+    if (action === 'moderate') await actions.moderate(kind, id, status);
+    else if (action === 'delete-file') await actions.deleteFile(id);
+    else if (action === 'scan-file') await actions.scan(id);
+    else if (action === 'scan-cancel') await actions.scan(id, 'DELETE');
+  } catch (error) {
+    UI.toast(error.message, true);
   }
 });
 
-document.querySelector('#refresh').addEventListener('click', () => {
-  if (!live.refresh()) refresh();
+auth.restore();
+let fallback;
+function startFallback() {
+  clearInterval(fallback);
+  fallback = setInterval(() => {
+    if (model.signedIn && !live.connected) data.refresh();
+  }, 10000);
+}
+startFallback();
+window.addEventListener('pagehide', () => {
+  clearInterval(fallback);
+  live.stop();
+  data.invalidate();
 });
-
-UI.api('/api/auth/me')
-  .then((user) => {
-    if (user.role === 'ADMIN') showApp(user);
-  })
-  .catch(() => {});
-
-setInterval(() => {
-  if (signedIn && !live.connected) refresh();
-}, 10000);
+window.addEventListener('pageshow', (event) => {
+  if (!event.persisted) return;
+  if (model.signedIn) {
+    live.start();
+    data.refresh();
+  } else auth.restore();
+  startFallback();
+});

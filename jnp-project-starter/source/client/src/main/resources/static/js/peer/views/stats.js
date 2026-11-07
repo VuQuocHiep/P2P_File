@@ -1,6 +1,6 @@
-'use strict';
+import { UI, bytes } from '/assets/js/ui.js';
 
-function statCards() {
+export function statCards(state) {
   let jobs = state.jobs || [],
     library = state.library || [];
   return (

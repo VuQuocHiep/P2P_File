@@ -1,23 +1,12 @@
-'use strict';
+import { api } from '/assets/js/http.js';
 
-async function refresh() {
-  if (!signedIn || refreshing) return;
-  refreshing = true;
-  try {
-    data = await UI.api('/api/admin/dashboard');
-    document.querySelector('#live-dot').classList.remove('off');
-    document.querySelector('#live-text').textContent =
-      'Cập nhật ' + new Date().toLocaleTimeString('vi-VN');
-    document.querySelector('#global-error').classList.add('hidden');
-    render();
-  } catch (e) {
-    if (e.status === 401) showLogin();
-    else {
-      document.querySelector('#live-dot').classList.add('off');
-      document.querySelector('#global-error').textContent = e.message;
-      document.querySelector('#global-error').classList.remove('hidden');
-    }
-  } finally {
-    refreshing = false;
-  }
-}
+export const adminApi = {
+  login: (body) => api('/api/auth/login', { method: 'POST', body }),
+  logout: () => api('/api/auth/logout', { method: 'POST', body: {} }),
+  me: () => api('/api/auth/me'),
+  dashboard: () => api('/api/admin/dashboard'),
+  moderate: (kind, id, status) =>
+    api(`/api/admin/${kind}/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status } }),
+  deleteFile: (id) => api(`/api/admin/files/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  scan: (id, method) => api(`/api/admin/files/${encodeURIComponent(id)}/scan-request`, { method }),
+};

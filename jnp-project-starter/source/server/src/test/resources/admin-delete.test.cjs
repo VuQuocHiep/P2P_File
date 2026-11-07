@@ -1,47 +1,69 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
-const root = path.resolve(__dirname, '../../main/resources/static/js/admin');
+const { createModuleLoader } = require('../../../../test/frontend/modules.cjs');
 
-test('file deletion button is immediately after pending approval and absent from account controls', () => {
-  const context = vm.createContext({ esc: (value) => value });
-  vm.runInContext(fs.readFileSync(path.join(root, 'views/tables.js'), 'utf8'), context);
-  const html = vm.runInContext('controls("files","hash","APPROVED")', context);
+test('file deletion button is immediately after pending approval and absent from account controls', async () => {
+  const load = createModuleLoader();
+  const { controls } = await load('server/src/main/resources/static/js/admin/views/tables.js');
+  const html = controls('files', 'hash', 'APPROVED');
   assert.ok(html.indexOf('Chờ duyệt') < html.indexOf('Xóa file'));
   assert.ok(html.includes('data-action="delete-file"'));
-  assert.ok(!vm.runInContext('controls("accounts","alice","APPROVED")', context).includes('delete-file'));
+  assert.ok(!controls('accounts', 'alice', 'APPROVED').includes('delete-file'));
 });
 
 async function clickDeletion(confirmed) {
-  const requests = [], notices = [];
-  let click, refreshes = 0;
-  const button = { dataset: { action: 'delete-file', id: 'hash' }, disabled: false };
-  const context = vm.createContext({
-    data: { files: [{ manifest: { id: 'hash', name: 'sample.pdf' } }] },
-    document: { querySelector: () => ({ addEventListener() {} }), addEventListener: (event, callback) => { if (event === 'click') click = callback; } },
-    UI: { api: (url, options) => { requests.push([url, options?.method || 'GET']); return url === '/api/auth/me' ? new Promise(() => {}) : Promise.resolve({ message: 'queued' }); }, toast: (message) => notices.push(message) },
-    confirm: (message) => { assert.ok(message.includes('Peer offline')); assert.ok(message.includes('File gốc')); return confirmed; },
-    refresh: async () => { refreshes++; }, setInterval() {},
+  const requests = [],
+    notices = [];
+  let refreshes = 0;
+  const load = createModuleLoader({
+    window: {
+      confirm(message) {
+        assert.ok(message.includes('Peer offline'));
+        assert.ok(message.includes('File gốc'));
+        return confirmed;
+      },
+    },
   });
-  context.window = context;
-  vm.runInContext(fs.readFileSync(path.join(root, 'app.js'), 'utf8'), context);
-  await click({ target: { closest: () => button } });
-  return { requests, notices, refreshes, disabled: button.disabled };
+  const { UI } = await load('common/src/main/resources/META-INF/resources/assets/js/ui.js');
+  UI.toast = (message) => notices.push(message);
+  const { Requests } = await load(
+    'common/src/main/resources/META-INF/resources/assets/js/requests.js',
+  );
+  const { createFileActions } = await load(
+    'server/src/main/resources/static/js/admin/actions/files.js',
+  );
+  const pending = new Requests();
+  const actions = createFileActions({
+    model: { signedIn: true, data: { files: [{ manifest: { id: 'hash', name: 'sample.pdf' } }] } },
+    data: {
+      session: 0,
+      refresh: async () => {
+        refreshes++;
+      },
+    },
+    requests: pending,
+    client: {
+      deleteFile: async (id) => {
+        requests.push([`/api/admin/files/${id}`, 'DELETE']);
+        return { message: 'queued' };
+      },
+    },
+  });
+  await actions.deleteFile('hash');
+  return { requests, notices, refreshes, pending: pending.pending.size };
 }
 
 test('cancelled confirmation sends no delete request', async () => {
   const result = await clickDeletion(false);
-  assert.deepEqual(result.requests, [['/api/auth/me', 'GET']]);
+  assert.deepEqual(result.requests, []);
   assert.equal(result.refreshes, 0);
-  assert.equal(result.disabled, false);
+  assert.equal(result.pending, 0);
 });
 
 test('confirmed deletion uses DELETE and refreshes the existing dashboard', async () => {
   const result = await clickDeletion(true);
-  assert.deepEqual(result.requests, [['/api/auth/me', 'GET'], ['/api/admin/files/hash', 'DELETE']]);
+  assert.deepEqual(result.requests, [['/api/admin/files/hash', 'DELETE']]);
   assert.deepEqual(result.notices, ['queued']);
   assert.equal(result.refreshes, 1);
-  assert.equal(result.disabled, false);
+  assert.equal(result.pending, 0);
 });

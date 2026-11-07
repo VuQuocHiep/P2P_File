@@ -1,6 +1,7 @@
-'use strict';
+import { UI, esc, bytes } from '/assets/js/ui.js';
+import { peerTable, auditRows } from './tables.js';
 
-function overview() {
+export function overview(data) {
   const pending = [
     ...data.accounts
       .filter((a) => a.status === 'PENDING')
@@ -17,15 +18,93 @@ function overview() {
         note: 'File · ' + bytes(f.manifest.size),
       })),
   ];
-  return `<div class="stats">${UI.stat('THÀNH VIÊN', data.accounts.filter((a) => a.role !== 'ADMIN').length, 'Tài khoản trong hệ thống')}${UI.stat('PEER TRỰC TUYẾN', data.peers.filter((p) => p.online).length, 'Heartbeat trong 20 giây', true)}${UI.stat('FILE ĐƯỢC DUYỆT', data.files.filter((f) => f.status === 'APPROVED').length, 'Sẵn sàng để tìm kiếm')}${UI.stat('ĐANG CHỜ DUYỆT', pending.length, 'Tài khoản, peer và file')}</div><div class="two-col"><section class="panel"><div class="panel-head"><h2>Luồng chia sẻ trong mạng</h2><span class="badge">P2P / TCP</span></div><div class="network"><div class="network-node"><div class="network-circle">⌘</div><strong>${data.peers.filter((p) => p.online).length} peer</strong><br><small>Trực tuyến</small></div><div class="network-line"></div><div class="network-node"><div class="network-circle">⋈</div><strong>Tracker</strong><br><small>Điều phối & phê duyệt</small></div><div class="network-line"></div><div class="network-node"><div class="network-circle">▤</div><strong>${data.files.length} file</strong><br><small>Trong danh mục</small></div></div><p class="section-note">Tracker cấp danh sách nguồn và vé tải. Các phần file đi trực tiếp giữa các peer bằng TCP; server lưu thông tin điều phối.</p></section><section class="panel"><div class="panel-head"><h2>Cần phê duyệt</h2><span class="badge PENDING">${pending.length} yêu cầu</span></div>${
-    pending.length
-      ? pending
-          .slice(0, 5)
-          .map(
-            (p) =>
-              `<div class="approval-card"><div><strong>${esc(p.label)}</strong><small>${esc(p.note)}</small></div>${p.kind === 'files' ? '<button class="small ghost" data-goto="files">Duyệt / quét tùy chọn →</button>' : `<button class="small primary" data-action="moderate" data-kind="${p.kind}" data-id="${esc(p.id)}" data-status="APPROVED">Duyệt</button>`}</div>`,
-          )
-          .join('')
-      : UI.empty('Tất cả yêu cầu đã được xử lý.')
-  }</section></div><section class="panel"><div class="panel-head"><h2>Thiết bị trong mạng</h2><button class="small ghost" data-goto="peers">Xem tất cả →</button></div>${peerTable(data.peers.slice(0, 5))}</section><section class="panel"><div class="panel-head"><h2>Hoạt động gần đây</h2><button class="small ghost" data-goto="audit">Nhật ký →</button></div>${auditRows(5)}</section>`;
+  return /* HTML */ `<div class="stats">
+      ${UI.stat(
+        'THÀNH VIÊN',
+        data.accounts.filter((a) => a.role !== 'ADMIN').length,
+        'Tài khoản trong hệ thống',
+      )}${UI.stat(
+        'PEER TRỰC TUYẾN',
+        data.peers.filter((p) => p.online).length,
+        'Heartbeat trong 20 giây',
+        true,
+      )}${UI.stat(
+        'FILE ĐƯỢC DUYỆT',
+        data.files.filter((f) => f.status === 'APPROVED').length,
+        'Sẵn sàng để tìm kiếm',
+      )}${UI.stat('ĐANG CHỜ DUYỆT', pending.length, 'Tài khoản, peer và file')}
+    </div>
+    <div class="two-col">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Luồng chia sẻ trong mạng</h2>
+          <span class="badge">P2P / TCP</span>
+        </div>
+        <div class="network">
+          <div class="network-node">
+            <div class="network-circle">⌘</div>
+            <strong>${data.peers.filter((p) => p.online).length} peer</strong><br /><small
+              >Trực tuyến</small
+            >
+          </div>
+          <div class="network-line"></div>
+          <div class="network-node">
+            <div class="network-circle">⋈</div>
+            <strong>Tracker</strong><br /><small>Điều phối & phê duyệt</small>
+          </div>
+          <div class="network-line"></div>
+          <div class="network-node">
+            <div class="network-circle">▤</div>
+            <strong>${data.files.length} file</strong><br /><small>Trong danh mục</small>
+          </div>
+        </div>
+        <p class="section-note">
+          Tracker cấp danh sách nguồn và vé tải. Các phần file đi trực tiếp giữa các peer bằng TCP;
+          server lưu thông tin điều phối.
+        </p>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Cần phê duyệt</h2>
+          <span class="badge PENDING">${pending.length} yêu cầu</span>
+        </div>
+        ${pending.length
+          ? pending
+              .slice(0, 5)
+              .map(
+                (p) =>
+                  /* HTML */ `<div class="approval-card">
+                    <div><strong>${esc(p.label)}</strong><small>${esc(p.note)}</small></div>
+                    ${p.kind === 'files'
+                      ? '<button class="small ghost" data-goto="files">Duyệt / quét tùy chọn →</button>'
+                      : /* HTML */ `<button
+                          class="small primary"
+                          data-action="moderate"
+                          data-request-key="${p.kind}:${esc(p.id)}"
+                          data-kind="${p.kind}"
+                          data-id="${esc(p.id)}"
+                          data-status="APPROVED"
+                        >
+                          Duyệt
+                        </button>`}
+                  </div>`,
+              )
+              .join('')
+          : UI.empty('Tất cả yêu cầu đã được xử lý.')}
+      </section>
+    </div>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Thiết bị trong mạng</h2>
+        <button class="small ghost" data-goto="peers">Xem tất cả →</button>
+      </div>
+      ${peerTable(data.peers.slice(0, 5))}
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Hoạt động gần đây</h2>
+        <button class="small ghost" data-goto="audit">Nhật ký →</button>
+      </div>
+      ${auditRows(data, 5)}
+    </section>`;
 }

@@ -1,34 +1,28 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
+const { createModuleLoader } = require('../../../../test/frontend/modules.cjs');
 
 async function renderHistory(history, chunks = [0, 1], totals = { 'Source A · peer-a': 524288 }) {
-  const calls = [];
-  const content = { innerHTML: '' };
-  const dialog = { open: false, showModal() { this.open = true; } };
-  const context = vm.createContext({
-    document: { addEventListener() {} },
-    state: {
-      jobs: [{ id: 'job-a', fileId: 'file-a', name: '<sample>.bin', sourceBytes: totals }],
-      library: [{ manifest: { id: 'file-a', hashes: ['hash-0', 'hash-1'] }, chunks }],
-    },
-    $: (selector) => selector === '#sources-content' ? content : dialog,
-  });
-  context.window = context;
-  vm.runInContext(fs.readFileSync(path.resolve(__dirname, '../../../../common/src/main/resources/META-INF/resources/assets/js/ui.js'), 'utf8'), context);
-  vm.runInContext('const {escape: esc, bytes} = UI;', context);
-  context.UI.api = async (url) => { calls.push(url); return history; };
-  vm.runInContext(fs.readFileSync(path.resolve(__dirname, '../../main/resources/static/js/peer/dialogs/chunk-history.js'), 'utf8'), context);
-  await vm.runInContext('showChunkHistory("job-a")', context);
-  assert.deepEqual(calls, ['/api/downloads/job-a/chunks']);
-  assert.equal(dialog.open, true);
-  return content.innerHTML;
+  const load = createModuleLoader();
+  const { renderChunkHistory } = await load(
+    'client/src/main/resources/static/js/peer/dialogs/chunk-history.js',
+  );
+  return renderChunkHistory(
+    { id: 'job-a', fileId: 'file-a', name: '<sample>.bin', sourceBytes: totals },
+    { manifest: { id: 'file-a', hashes: ['hash-0', 'hash-1'] }, chunks },
+    history,
+  );
 }
 
 test('recorded chunk history renders without contacting a source or tracker', async () => {
-  const source = { peerId: 'peer-a', name: 'Source <A>', owner: 'alice', host: '127.0.0.1', port: 9001, receivedAt: 123456 };
+  const source = {
+    peerId: 'peer-a',
+    name: 'Source <A>',
+    owner: 'alice',
+    host: '127.0.0.1',
+    port: 9001,
+    receivedAt: 123456,
+  };
   const html = await renderHistory({ 0: source, 1: source });
   assert.ok(html.includes('Source &lt;A&gt;'));
   assert.ok(html.includes('alice'));

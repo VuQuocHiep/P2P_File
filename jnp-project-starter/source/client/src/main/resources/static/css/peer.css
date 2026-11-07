@@ -1,2 +1,15 @@
-.scan-consent { display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; margin: 16px 0; }
-.scan-consent input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 18px; padding: 0; margin: 3px 0 0; accent-color: var(--accent); }
+.scan-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.6;
+  margin: 16px 0;
+}
+.scan-consent input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  padding: 0;
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}

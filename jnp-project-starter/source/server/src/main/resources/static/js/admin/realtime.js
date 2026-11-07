@@ -1,19 +1,15 @@
-'use strict';
+import { LiveChannel } from '/assets/js/realtime.js';
+import { $ } from '/assets/js/dom.js';
 
-const live = new LiveChannel(
-  '/ws/admin',
-  (next) => {
-    data = next;
-    document.querySelector('#live-dot').classList.remove('off');
-    document.querySelector('#live-text').textContent =
-      'Cập nhật ' + new Date().toLocaleTimeString('vi-VN');
-    document.querySelector('#global-error').classList.add('hidden');
-    render();
-  },
-  (connected) => {
-    const badge = document.querySelector('#realtime');
-    badge.textContent = connected ? 'WebSocket trực tiếp' : 'Đang nối lại · HTTP dự phòng';
-    badge.className = 'badge ' + (connected ? 'ONLINE' : 'WAITING');
-  },
-  showLogin,
-);
+export function createAdminChannel(onSnapshot, onUnauthorized) {
+  return new LiveChannel(
+    '/ws/admin',
+    onSnapshot,
+    (connected) => {
+      const badge = $('#realtime');
+      badge.textContent = connected ? 'WebSocket trực tiếp' : 'Đang nối lại · HTTP dự phòng';
+      badge.className = 'badge ' + (connected ? 'ONLINE' : 'WAITING');
+    },
+    onUnauthorized,
+  );
+}
