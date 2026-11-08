@@ -438,6 +438,18 @@ Nguồn xác thực vé với tracker, kiểm tra phần dữ liệu trước kh
 
 ## Kiểm thử và kết quả thực nghiệm
 
+Frontend dùng ES Modules và JavaScript thuần; xem [kiến trúc giao diện](ARCHITECTURE.md#giao-diện-tìm-đúng-file-cần-đọc) để tìm entry point, state, API, action và view. Kiểm thử frontend riêng bằng Node.js 22+ tại thư mục chứa README:
+
+```powershell
+npm test
+# Công cụ định dạng và kiểm thử trình duyệt (tùy chọn, cần Chrome):
+npm ci
+npm run format:check
+npm run test:browser
+```
+
+Build/chạy ứng dụng Java vẫn dùng Maven như dưới đây, không yêu cầu Node.js.
+
 ```powershell
 # JUnit và đóng gói
 mvn -f source/pom.xml package

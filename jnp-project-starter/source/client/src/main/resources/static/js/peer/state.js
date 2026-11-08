@@ -1,17 +1,15 @@
-'use strict';
+export function createPeerState() {
+  return {
+    mode: 'login',
+    tab: 'explore',
+    snapshot: null,
+    catalog: [],
+    query: '',
+    lab: { selected: '', busy: false },
+  };
+}
 
-const { escape: esc, bytes, time } = UI;
-
-let mode = 'login',
-  tab = 'explore',
-  lastTab = '',
-  state = null,
-  catalog = [],
-  query = '',
-  polling = false,
-  catalogLoading = false;
-
-const titles = {
+export const titles = {
   lab: 'Phòng thí nghiệm P2P',
   explore: 'Khám phá file',
   downloads: 'Phiên tải của tôi',
@@ -19,7 +17,7 @@ const titles = {
   activity: 'Hoạt động peer',
 };
 
-const notes = {
+export const notes = {
   lab: 'Quan sát kết nối thật, đo hiệu năng và thử khả năng phục hồi.',
   explore: 'Tìm file trong mạng và kết nối trực tiếp đến các nguồn.',
   downloads: 'Theo dõi từng phần, từng nguồn và tiến độ đã lưu.',
@@ -27,16 +25,14 @@ const notes = {
   activity: 'Thông tin thiết bị, kết nối và nhật ký cục bộ.',
 };
 
-const $ = (s) => document.querySelector(s);
-
-function applyState(next) {
-  state = next;
+export function applyState(model, next) {
+  model.snapshot = next;
   if (Array.isArray(next.catalog))
-    catalog = next.catalog.filter((file) =>
-      file.manifest.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+    model.catalog = next.catalog.filter((file) =>
+      file.manifest.name.toLocaleLowerCase().includes(model.query.toLocaleLowerCase()),
     );
 }
 
-function ready() {
+export function ready(state) {
   return state?.user?.status === 'APPROVED' && state?.peerStatus === 'APPROVED';
 }

@@ -1,7 +1,5 @@
-'use strict';
-
 /** A full snapshot after reconnect repairs any events missed while the browser was offline. */
-window.LiveChannel = class {
+export class LiveChannel {
   constructor(path, onSnapshot, onState, onUnauthorized = () => {}) {
     this.path = path;
     this.onSnapshot = onSnapshot;
@@ -79,4 +77,4 @@ window.LiveChannel = class {
     this.socket = null;
     socket?.close();
   }
-};
+}

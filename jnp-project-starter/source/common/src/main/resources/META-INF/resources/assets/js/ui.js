@@ -1,5 +1,4 @@
-'use strict';
-window.UI = {
+export const UI = {
   escape(value) {
     return String(value ?? '').replace(
       /[&<>"']/g,
@@ -38,22 +37,6 @@ window.UI = {
   empty(message) {
     return `<div class="empty"><div class="empty-icon">◇</div>${this.escape(message)}</div>`;
   },
-  async api(path, options = {}) {
-    const headers = { 'X-PeerMesh': '1', ...(options.headers || {}) };
-    let body = options.body;
-    if (body !== undefined && !(body instanceof FormData)) {
-      headers['Content-Type'] = 'application/json';
-      body = JSON.stringify(body);
-    }
-    const response = await fetch(path, { ...options, headers, body, credentials: 'same-origin' });
-    const data = await response.json().catch(() => ({ message: 'Phản hồi không hợp lệ.' }));
-    if (!response.ok) {
-      const error = new Error(data.message || data.detail || 'Yêu cầu thất bại.');
-      error.status = response.status;
-      throw error;
-    }
-    return data;
-  },
   toast(message, error = false) {
     let node = document.querySelector('#toast');
     if (!node) {
@@ -74,8 +57,9 @@ window.UI = {
     return `<div class="table-wrap"><table><thead><tr>${head.map((h) => `<th>${this.escape(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
   },
 };
+export const { escape: esc, bytes, time } = UI;
 // CSP-friendly progress widths: create fixed classes once, avoiding inline styles.
-document.addEventListener('DOMContentLoaded', () => {
+export function initializeUI() {
   for (let i = 0; i < document.styleSheets.length; i++) {
     const sheet = document.styleSheets[i];
     try {
@@ -84,4 +68,4 @@ document.addEventListener('DOMContentLoaded', () => {
       break;
     } catch (_) {}
   }
-});
+}

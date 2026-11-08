@@ -1,0 +1,14 @@
+{
+  "name": "peermesh-frontend",
+  "private": true,
+  "scripts": {
+    "test": "node --experimental-vm-modules --test source/test/frontend/*.test.cjs source/client/src/test/resources/*.test.cjs source/server/src/test/resources/*.test.cjs",
+    "test:browser": "node source/test/frontend/browser.cjs",
+    "format": "prettier --write \"source/common/src/main/resources/META-INF/resources/assets/**/*.{js,css}\" \"source/client/src/main/resources/static/**/*.{js,css,html}\" \"source/server/src/main/resources/static/**/*.{js,css,html}\" \"source/test/frontend/*.cjs\" \"source/{client,server}/src/test/resources/*.test.cjs\"",
+    "format:check": "prettier --check \"source/common/src/main/resources/META-INF/resources/assets/**/*.{js,css}\" \"source/client/src/main/resources/static/**/*.{js,css,html}\" \"source/server/src/main/resources/static/**/*.{js,css,html}\" \"source/test/frontend/*.cjs\" \"source/{client,server}/src/test/resources/*.test.cjs\""
+  },
+  "devDependencies": {
+    "playwright": "1.62.0",
+    "prettier": "3.6.2"
+  }
+}
