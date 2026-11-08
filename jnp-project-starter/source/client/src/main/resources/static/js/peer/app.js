@@ -10,6 +10,7 @@ import { createDownloadActions } from './actions/downloads.js';
 import { createLibraryActions } from './actions/library.js';
 import { createLabActions } from './actions/lab.js';
 import { createFileDialogs } from './dialogs/sources.js';
+import { createBandwidthActions } from './actions/bandwidth.js';
 
 initializeUI();
 const model = createPeerState();
@@ -30,6 +31,7 @@ const auth = createPeerAuth({ model, live, data, render, requests, dialogs });
 const download = createDownloadActions({ model, data, requests });
 const library = createLibraryActions({ model, data, requests });
 const lab = createLabActions({ model, data, requests });
+const bandwidth = createBandwidthActions({ model, data, requests });
 let searchTimer;
 
 function render() {
@@ -54,6 +56,10 @@ $('#open-upload').addEventListener('click', () => $('#upload-dialog').showModal(
 $('#upload-form').addEventListener('submit', (event) => {
   event.preventDefault();
   library.upload(event.target).catch((error) => UI.toast(error.message, true));
+});
+$('#bandwidth-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  bandwidth.save(event.target).catch((error) => UI.toast(error.message, true));
 });
 
 document.addEventListener('input', (event) => {
@@ -85,7 +91,8 @@ document.addEventListener('click', async (event) => {
     }
     if (button.id === 'refresh-catalog') return await data.loadCatalog();
     const { action, id } = button.dataset;
-    if (['download', 'pause', 'resume'].includes(action)) await download(action, id);
+    if (action === 'bandwidth') bandwidth.open();
+    else if (['download', 'pause', 'resume'].includes(action)) await download(action, id);
     else if (['sharing', 'scan-consent'].includes(action))
       await library.change(action, id, button.dataset.enabled === 'true');
     else if (action === 'sources') await dialogs.sources(id);

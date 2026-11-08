@@ -1,6 +1,7 @@
 import { api } from '/assets/js/http.js';
 
 export const peerApi = {
+  bandwidth: (body) => api('/api/settings/bandwidth', { method: 'PATCH', body }),
   status: () => api('/api/status'),
   catalog: (query, signal) => api('/api/catalog?q=' + encodeURIComponent(query), { signal }),
   register: (body) => api('/api/auth/register', { method: 'POST', body }),

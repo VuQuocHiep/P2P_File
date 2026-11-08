@@ -35,7 +35,9 @@ public class PeerRuntime {
         context.peerDeletionService = deletionService;
         context.peerMalwareService = malwareService;
         context.tcpServer =
-                new TcpChunkServer(context.tcpPort, context.delay, libraryService::readChunk);
+                new TcpChunkServer(
+                        context.tcpPort, context.delay, libraryService::readChunk,
+                        context.uploadBandwidth);
         context.pulse.scheduleWithFixedDelay(sessionService::heartbeat, 2, 5, TimeUnit.SECONDS);
         context.telemetry.scheduleWithFixedDelay(labService::sampleNetwork, 1, 1, TimeUnit.SECONDS);
     }

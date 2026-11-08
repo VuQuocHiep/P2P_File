@@ -153,6 +153,8 @@ class PeerApiIntegrationTest {
         assertEquals(
                 "PeerMesh Peer", send(http, "GET", "/health", null, 200).path("service").asText());
         send(http, "GET", "/catalog", null, 401);
+        send(http, "GET", "/settings/bandwidth", null, 401);
+        send(http, "PATCH", "/settings/bandwidth", "{\"uploadLimitKiB\":64,\"downloadLimitKiB\":32}", 401);
         var registration =
                 send(
                         http,
@@ -203,9 +205,23 @@ class PeerApiIntegrationTest {
                 "downloadWorkers",
                 "activeDownloads",
                 "workerLimitPerFile",
-                "fileLimit");
+                "fileLimit",
+                "bandwidth");
         assertEquals(4, login.path("network").path("workerLimitPerFile").asInt());
         assertEquals(2, login.path("network").path("fileLimit").asInt());
+        var bandwidth = send(http, "GET", "/settings/bandwidth", null, 200);
+        assertEquals(0, bandwidth.path("uploadLimitKiB").asLong());
+        bandwidth = send(http, "PATCH", "/settings/bandwidth", "{\"uploadLimitKiB\":64,\"downloadLimitKiB\":32}", 200);
+        assertEquals(64, bandwidth.path("uploadLimitKiB").asLong());
+        assertEquals(32, bandwidth.path("downloadLimitKiB").asLong());
+        for (String invalid : List.of("{}", "{\"uploadLimitKiB\":-1,\"downloadLimitKiB\":0}",
+                "{\"uploadLimitKiB\":0,\"downloadLimitKiB\":1048577}",
+                "{\"uploadLimitKiB\":1.5,\"downloadLimitKiB\":0}",
+                "{\"uploadLimitKiB\":\"64\",\"downloadLimitKiB\":0}")) {
+            send(http, "PATCH", "/settings/bandwidth", invalid, 400);
+        }
+        assertEquals(64, send(http, "GET", "/status", null, 200).path("network").path("bandwidth").path("uploadLimitKiB").asLong());
+        send(http, "PATCH", "/settings/bandwidth", "{\"uploadLimitKiB\":0,\"downloadLimitKiB\":0}", 200);
         assertEquals("Laptop", send(http, "GET", "/status", null, 200).path("name").asText());
         assertEquals(json.createArrayNode(), send(http, "GET", "/catalog?q=test", null, 200));
         assertEquals(

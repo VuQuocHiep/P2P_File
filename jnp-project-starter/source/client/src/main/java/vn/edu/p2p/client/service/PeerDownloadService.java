@@ -190,7 +190,8 @@ public class PeerDownloadService {
                                                                 source,
                                                                 entry.manifest,
                                                                 index,
-                                                                "Tải file");
+                                                                "Tải file",
+                                                                () -> !active(jobId));
                                                 synchronized (context.storage.monitor()) {
                                                     if (!active(jobId)) return;
                                                     Path part =
@@ -227,6 +228,7 @@ public class PeerDownloadService {
                                                 progress.incrementAndGet();
                                                 return;
                                             } catch (Exception e) {
+                                                if (!active(jobId)) return;
                                                 if (failures.get(source.id()).getAndIncrement()
                                                         == 0)
                                                     synchronized (context.storage.monitor()) {

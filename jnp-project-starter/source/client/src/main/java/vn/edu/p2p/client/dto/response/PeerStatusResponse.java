@@ -57,5 +57,6 @@ public record PeerStatusResponse(
             int downloadWorkers,
             int activeDownloads,
             int workerLimitPerFile,
-            int fileLimit) {}
+            int fileLimit,
+            BandwidthResponse bandwidth) {}
 }

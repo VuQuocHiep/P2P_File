@@ -5,6 +5,7 @@ import vn.edu.p2p.client.storage.PeerStorage;
 import vn.edu.p2p.client.network.TrackerGateway;
 import vn.edu.p2p.client.network.TcpChunkServer;
 import vn.edu.p2p.client.network.TcpChunkClient;
+import vn.edu.p2p.client.network.BandwidthLimiter;
 import vn.edu.p2p.common.concurrent.NamedThreads;
 import com.fasterxml.jackson.databind.*;
 import vn.edu.p2p.client.model.*;
@@ -30,7 +31,9 @@ final class PeerContext {
     final int tcpPort;
     TcpChunkServer tcpServer;
     final int delay;
-    final TcpChunkClient tcpClient = new TcpChunkClient();
+    final BandwidthLimiter uploadBandwidth = new BandwidthLimiter();
+    final BandwidthLimiter downloadBandwidth = new BandwidthLimiter();
+    final TcpChunkClient tcpClient = new TcpChunkClient(downloadBandwidth);
     final ExecutorService coordinators =
             Executors.newFixedThreadPool(2, NamedThreads.factory("download-coordinator"));
     final ScheduledExecutorService pulse =
@@ -53,6 +56,8 @@ final class PeerContext {
     final Map<String, Map<String, Long>> sourceStats = new ConcurrentHashMap<>();
     final List<Map<String, Object>> samples = new ArrayList<>();
     long sampleAt = System.nanoTime(), sampleRx, sampleTx;
+    long sampleReadBytes;
+    volatile long uploadBytesPerSecond, downloadBytesPerSecond;
     final ExecutorService labWorker =
             Executors.newSingleThreadExecutor(NamedThreads.factory("demo-benchmark"));
     final AtomicBoolean benchmarking = new AtomicBoolean();
@@ -87,6 +92,10 @@ final class PeerContext {
         this.tracker = tracker;
         this.json = json;
         this.tcpPort = tcpPort;
+        synchronized (storage.monitor()) {
+            uploadBandwidth.setLimit(profile.getUploadLimitKiB());
+            downloadBandwidth.setLimit(profile.getDownloadLimitKiB());
+        }
         catalogSnapshot = json.createArrayNode();
     }
 }

@@ -51,6 +51,12 @@ async function fixture(role) {
   let sequence = 0;
   let benchmark = { status: 'IDLE', results: [] };
   let scanStage;
+  let bandwidth = {
+    uploadLimitKiB: 0,
+    downloadLimitKiB: 0,
+    uploadBytesPerSecond: 1024,
+    downloadBytesPerSecond: 2048,
+  };
   const jobs = [
     {
       id: 'job-1',
@@ -114,6 +120,7 @@ async function fixture(role) {
       jobs,
       events: ['Đã kết nối tracker'],
       network: {
+        bandwidth,
         upload: {
           activeWorkers: 0,
           workerLimit: 4,
@@ -170,6 +177,13 @@ async function fixture(role) {
       if (!signedIn) return send({ message: 'Cần đăng nhập.' }, 401);
       if (url.pathname === '/api/auth/me') return send(snapshot().accounts[0]);
       if (url.pathname === '/api/admin/dashboard') return send(snapshot());
+      if (url.pathname === '/api/settings/bandwidth') {
+        if (request.method === 'PATCH') {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          bandwidth = { ...bandwidth, ...body };
+        }
+        return send(bandwidth);
+      }
       if (url.pathname === '/api/catalog') {
         const query = url.searchParams.get('q') || '';
         if (query === 'Al') await new Promise((resolve) => setTimeout(resolve, 800));
@@ -441,6 +455,35 @@ async function run() {
       secondId,
     );
     assert.equal(peer.calls.find((call) => call.path === '/api/lab/fault').body.mode, 'CORRUPT');
+    await page.locator('[data-tab="activity"]').click();
+    await page.locator('[data-action="bandwidth"]').click();
+    await page.locator('#upload-limit-kib').fill('128');
+    await page.locator('#download-limit-kib').fill('64');
+    await page.locator('#download-limit-kib').focus();
+    await waitFrames(page);
+    assert.equal(await page.locator('#download-limit-kib').inputValue(), '64');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'download-limit-kib');
+    await page.locator('#bandwidth-form button[type="submit"]').click();
+    await page.locator('#bandwidth-dialog').waitFor({ state: 'hidden' });
+    await page.waitForFunction(() =>
+      document.querySelector('[data-bandwidth="upload"]').textContent.includes('128 KiB/s'),
+    );
+    assert.match(await page.locator('[data-bandwidth="download"]').textContent(), /64 KiB\/s/);
+    await page.locator('[data-action="bandwidth"]').click();
+    assert.equal(await page.locator('#upload-limit-kib').inputValue(), '128');
+    await page.locator('#upload-limit-kib').fill('256');
+    await waitFrames(page);
+    assert.equal(await page.locator('#upload-limit-kib').inputValue(), '256');
+    await page.locator('[data-close="bandwidth-dialog"]').click();
+    assert.equal(peer.calls.filter((call) => call.path === '/api/settings/bandwidth').length, 1);
+    await page.locator('[data-action="bandwidth"]').click();
+    await page.locator('#upload-limit-kib').fill('0');
+    await page.locator('#download-limit-kib').fill('0');
+    await page.locator('#bandwidth-form button[type="submit"]').click();
+    await page.locator('#bandwidth-dialog').waitFor({ state: 'hidden' });
+    await page.waitForFunction(() =>
+      document.querySelector('[data-bandwidth="upload"]').textContent.includes('Không giới hạn'),
+    );
     await page.locator('#logout').click();
     await page.locator('#login').waitFor({ state: 'visible' });
 

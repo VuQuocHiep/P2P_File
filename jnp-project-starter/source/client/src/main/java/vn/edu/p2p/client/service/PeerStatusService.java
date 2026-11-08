@@ -19,12 +19,15 @@ public class PeerStatusService {
     private final PeerContext context;
     private final LibraryMapper libraryMapper;
     private final JobMapper jobMapper;
+    private final PeerBandwidthService bandwidthService;
 
     public PeerStatusService(
-            PeerContext context, LibraryMapper libraryMapper, JobMapper jobMapper) {
+            PeerContext context, LibraryMapper libraryMapper, JobMapper jobMapper,
+            PeerBandwidthService bandwidthService) {
         this.context = context;
         this.libraryMapper = libraryMapper;
         this.jobMapper = jobMapper;
+        this.bandwidthService = bandwidthService;
     }
 
     public PeerStatusResponse status() {
@@ -52,7 +55,8 @@ public class PeerStatusService {
                                     .sum(),
                             context.running.size(),
                             4,
-                            2);
+                            2,
+                            bandwidthService.settings());
             var library = new ArrayList<LibraryResponse>();
             for (Entry e : context.library.findAll()) library.add(libraryMapper.toResponse(e));
             var jobs = new ArrayList<JobResponse>();
