@@ -64,6 +64,7 @@ public class PeerSessionService {
         }
         if ("APPROVED".equals(context.user.path("status").asText())) connectPeer();
         else context.connection = "Tài khoản đang chờ duyệt";
+        context.peerDownloadService.dispatchQueued();
         return context.peerStatusService.status();
     }
 
@@ -135,6 +136,7 @@ public class PeerSessionService {
             context.connection = "Đã kết nối tracker";
             context.catalogSnapshot = context.tracker.call("GET", "/api/files", null);
             if (!"APPROVED".equals(context.peerStatus)) return;
+            context.peerDownloadService.dispatchQueued();
             List<String> files;
             List<String> jobs;
             synchronized (context.storage.monitor()) {

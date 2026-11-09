@@ -153,6 +153,7 @@ class PeerApiIntegrationTest {
         assertEquals(
                 "PeerMesh Peer", send(http, "GET", "/health", null, 200).path("service").asText());
         send(http, "GET", "/catalog", null, 401);
+        send(http, "PATCH", "/downloads/missing/priority", "{\"priority\":\"HIGH\"}", 401);
         send(http, "GET", "/settings/bandwidth", null, 401);
         send(http, "PATCH", "/settings/bandwidth", "{\"uploadLimitKiB\":64,\"downloadLimitKiB\":32}", 401);
         var registration =
@@ -269,7 +270,18 @@ class PeerApiIntegrationTest {
                 "speed",
                 "error",
                 "sourceBytes",
-                "chunks");
+                "chunks",
+                "priority",
+                "queuePosition");
+        assertEquals("NORMAL", job.path("priority").asText());
+        assertEquals(0, job.path("queuePosition").asInt());
+        send(http, "PATCH", "/downloads/" + job.path("id").asText() + "/priority",
+                "{\"priority\":\"HIGH\"}", 400);
+        send(http, "PATCH", "/downloads/missing/priority", "{\"priority\":\"HIGH\"}", 400);
+        for (String invalid : List.of("{}", "{\"priority\":null}", "{\"priority\":\"URGENT\"}",
+                "{\"priority\":1}", "{\"priority\":true}")) {
+            send(http, "PATCH", "/downloads/missing/priority", invalid, 400);
+        }
         assertEquals(content.length, job.path("bytes").asLong());
         var history =
                 send(

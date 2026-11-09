@@ -70,6 +70,16 @@ document.addEventListener('input', (event) => {
 });
 document.addEventListener('change', (event) => {
   if (event.target.id === 'lab-file') model.lab.selected = event.target.value;
+  if (event.target.dataset.action === 'priority') {
+    const control = event.target;
+    download('priority', control.dataset.id, control.value)
+      .catch((error) => UI.toast(error.message, true))
+      .finally(() => {
+        const job = model.snapshot?.jobs.find((job) => job.id === control.dataset.id);
+        if (job) control.value = job.priority || 'NORMAL';
+        render();
+      });
+  }
 });
 $('#sources-dialog').addEventListener('close', () => dialogs.invalidate());
 

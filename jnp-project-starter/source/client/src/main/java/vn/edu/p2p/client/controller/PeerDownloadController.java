@@ -45,6 +45,13 @@ public class PeerDownloadController {
     public MessageResponse resume(@PathVariable String id, HttpServletRequest r) {
         auth(r);
         service.resume(id);
-        return new MessageResponse("Đã tiếp tục tải.");
+        return new MessageResponse("Đã tiếp tục tải hoặc xếp hàng nếu đang đủ phiên tải.");
+    }
+
+    @PatchMapping("/downloads/{id}/priority")
+    public MessageResponse priority(
+            @PathVariable String id, @RequestBody Priority body, HttpServletRequest r) {
+        auth(r);
+        return service.priority(id, body.priority());
     }
 }

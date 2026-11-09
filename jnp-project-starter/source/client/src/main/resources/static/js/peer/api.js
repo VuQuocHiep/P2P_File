@@ -11,6 +11,8 @@ export const peerApi = {
   download: (id) => api('/api/downloads', { method: 'POST', body: { fileId: id } }),
   downloadAction: (id, action) =>
     api(`/api/downloads/${id}/${action}`, { method: 'POST', body: {} }),
+  downloadPriority: (id, priority) =>
+    api(`/api/downloads/${id}/priority`, { method: 'PATCH', body: { priority } }),
   sharing: (id, enabled) =>
     api(`/api/library/${id}/sharing`, { method: 'PATCH', body: { enabled } }),
   scanConsent: (id, enabled) =>

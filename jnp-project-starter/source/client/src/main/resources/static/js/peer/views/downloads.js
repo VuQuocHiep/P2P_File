@@ -4,9 +4,17 @@ import { ready } from '../state.js';
 export function downloads(state) {
   if (!state.jobs.length)
     return UI.empty('Chưa có phiên tải. Chọn một file trong Khám phá để bắt đầu.');
-  return state.jobs
+  const queued = state.jobs.filter((job) => job.status === 'QUEUED').length;
+  const active = state.jobs.filter((job) => ['DOWNLOADING', 'WAITING'].includes(job.status)).length;
+  const rank = (job) =>
+    ['DOWNLOADING', 'WAITING'].includes(job.status) ? 0 : job.status === 'QUEUED' ? 1 : 2;
+  const cards = state.jobs
     .slice()
     .reverse()
+    .sort(
+      (a, b) =>
+        rank(a) - rank(b) || (a.status === 'QUEUED' ? a.queuePosition - b.queuePosition : 0),
+    )
     .map((j) => {
       const entry = state.library.find((e) => e.manifest.id === j.fileId),
         m = entry.manifest,
@@ -39,6 +47,37 @@ export function downloads(state) {
           <span>${bytes(j.bytes)} / ${bytes(j.size)} · ${percent}%</span
           ><span>${bytes(j.speed)}/s · ${Object.keys(j.sourceBytes).length} nguồn đã gửi</span>
         </div>
+        ${j.status === 'QUEUED'
+          ? /* HTML */ `<p class="status-message">
+              Vị trí hàng đợi: #${j.queuePosition}. Tự tải khi có chỗ trống.
+            </p>`
+          : ''}
+        ${j.status !== 'COMPLETED'
+          ? /* HTML */ `<label for="priority-${esc(j.id)}">Độ ưu tiên</label>
+              <select
+                id="priority-${esc(j.id)}"
+                data-action="priority"
+                data-id="${esc(j.id)}"
+                data-request-key="job:${esc(j.id)}"
+                aria-label="Độ ưu tiên của ${esc(j.name)}"
+              >
+                ${[
+                  ['HIGH', 'Cao'],
+                  ['NORMAL', 'Bình thường'],
+                  ['LOW', 'Thấp'],
+                ]
+                  .map(
+                    ([value, label]) =>
+                      /* HTML */ `<option
+                        value="${value}"
+                        ${value === (j.priority || 'NORMAL') ? 'selected' : ''}
+                      >
+                        ${label}
+                      </option>`,
+                  )
+                  .join('')}
+              </select>`
+          : ''}
         <div class="chunk-grid" aria-label="Các phần đã tải">
           ${Array.from(
             { length: count },
@@ -64,7 +103,7 @@ export function downloads(state) {
         </div>
         ${j.error ? /* HTML */ `<p class="status-message">${esc(j.error)}</p>` : ''}
         <div class="actions source-row">
-          ${['DOWNLOADING', 'WAITING'].includes(j.status)
+          ${['DOWNLOADING', 'WAITING', 'QUEUED'].includes(j.status)
             ? /* HTML */ `<button
                 class="small"
                 data-action="pause"
@@ -97,4 +136,11 @@ export function downloads(state) {
       </article>`;
     })
     .join('');
+  return (
+    /* HTML */ `<p class="section-note">
+      Đang tải ${active}/${state.network?.fileLimit || 2} file · Đang xếp hàng ${queued} file.
+      Ưu tiên Cao → Bình thường → Thấp; cùng mức thì file vào hàng trước được tải trước.
+      Đổi ưu tiên không ngắt file đang tải. Tạm dừng sẽ bỏ file khỏi hàng chờ.
+    </p>` + cards
+  );
 }

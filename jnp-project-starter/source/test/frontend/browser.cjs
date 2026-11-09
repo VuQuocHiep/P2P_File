@@ -69,6 +69,8 @@ async function fixture(role) {
       chunks: 1,
       sourceBytes: { 'Source A': 262144 },
       error: '',
+      priority: 'NORMAL',
+      queuePosition: 0,
     },
   ];
   const library = files.map((file, index) => ({
@@ -215,9 +217,20 @@ async function fixture(role) {
         });
       if (url.pathname.endsWith('/pause')) {
         await new Promise((resolve) => setTimeout(resolve, 1200));
-        jobs[0].status = 'PAUSED';
+        jobs.find((job) => url.pathname.includes('/' + job.id + '/')).status = 'PAUSED';
       }
       if (url.pathname.endsWith('/resume')) jobs[0].status = 'DOWNLOADING';
+      if (url.pathname.endsWith('/priority')) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        if (body.priority === 'LOW') return send({ message: 'Could not save priority' }, 400);
+        jobs.find((job) => url.pathname.includes('/' + job.id + '/')).priority = body.priority;
+        jobs
+          .filter((job) => job.status === 'QUEUED')
+          .sort((a, b) => (a.priority === 'HIGH' ? 0 : 1) - (b.priority === 'HIGH' ? 0 : 1))
+          .forEach((job, index) => {
+            job.queuePosition = index + 1;
+          });
+      }
       if (url.pathname.endsWith('/sharing'))
         library.find((entry) => url.pathname.includes(entry.manifest.id)).sharing = body.enabled;
       if (url.pathname.endsWith('/scan-consent'))
@@ -280,6 +293,28 @@ async function fixture(role) {
   return {
     url: 'http://127.0.0.1:' + server.address().port,
     calls,
+    queueFiles() {
+      const thirdId = 'c'.repeat(64);
+      library.push({ ...library[0], manifest: manifest(thirdId, 'Gamma.bin') });
+      jobs.push(
+        {
+          ...jobs[0],
+          id: 'job-2',
+          fileId: secondId,
+          name: 'Beta.bin',
+          status: 'QUEUED',
+          queuePosition: 1,
+        },
+        {
+          ...jobs[0],
+          id: 'job-3',
+          fileId: thirdId,
+          name: 'Gamma.bin',
+          status: 'QUEUED',
+          queuePosition: 2,
+        },
+      );
+    },
     get sequence() {
       return sequence;
     },
@@ -484,6 +519,38 @@ async function run() {
     await page.waitForFunction(() =>
       document.querySelector('[data-bandwidth="upload"]').textContent.includes('Không giới hạn'),
     );
+    peer.queueFiles();
+    await page.locator('[data-tab="downloads"]').click();
+    await page.locator('[data-key="job-3"]').waitFor();
+    const priority = page.locator('#priority-job-3');
+    await priority.focus();
+    await waitFrames(page);
+    assert.equal(await priority.inputValue(), 'NORMAL');
+    await priority.selectOption('HIGH');
+    await page.waitForFunction(() => document.querySelector('#priority-job-3').disabled);
+    assert.equal(await page.locator('[data-key="job-3"] [data-action="pause"]').isDisabled(), true);
+    await page.waitForFunction(() => !document.querySelector('#priority-job-3').disabled);
+    await waitFrames(page);
+    assert.equal(await priority.inputValue(), 'HIGH');
+    assert.match(await page.locator('[data-key="job-3"]').textContent(), /Vị trí hàng đợi: #1/);
+    assert.deepEqual(
+      await page
+        .locator('.download-card')
+        .evaluateAll((nodes) => nodes.map((node) => node.dataset.key)),
+      ['job-1', 'job-3', 'job-2'],
+    );
+    await priority.selectOption('LOW');
+    await page.waitForFunction(() =>
+      document.querySelector('#toast').textContent.includes('Could not save priority'),
+    );
+    assert.equal(await priority.inputValue(), 'HIGH');
+    assert.equal(
+      peer.calls.filter((call) => call.path.endsWith('/priority') && call.body.priority === 'HIGH')
+        .length,
+      1,
+    );
+    await page.locator('[data-key="job-2"] [data-action="pause"]').click();
+    await page.locator('[data-key="job-2"] [data-action="resume"]').waitFor();
     await page.locator('#logout').click();
     await page.locator('#login').waitFor({ state: 'visible' });
 

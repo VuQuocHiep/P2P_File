@@ -41,7 +41,9 @@ public record PeerStatusResponse(
             long speed,
             String error,
             Map<String, Long> sourceBytes,
-            int chunks) {}
+            int chunks,
+            String priority,
+            int queuePosition) {}
 
     public record LabResponse(
             FaultState fault,

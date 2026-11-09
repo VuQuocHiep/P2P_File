@@ -60,6 +60,9 @@ public class PeerStatusService {
             var library = new ArrayList<LibraryResponse>();
             for (Entry e : context.library.findAll()) library.add(libraryMapper.toResponse(e));
             var jobs = new ArrayList<JobResponse>();
+            var positions = new HashMap<String, Integer>();
+            var queued = context.jobs.findQueued();
+            for (int i = 0; i < queued.size(); i++) positions.put(queued.get(i).id, i + 1);
             for (Job j : context.jobs.findAll()) {
                 Entry e = context.library.findByFileId(j.fileId);
                 long elapsed =
@@ -76,7 +79,8 @@ public class PeerStatusService {
                                 : 0;
                 jobs.add(
                         jobMapper.toResponse(
-                                j, e, context.peerDownloadService.completedBytes(e), speed));
+                                j, e, context.peerDownloadService.completedBytes(e), speed,
+                                positions.getOrDefault(j.id, 0)));
             }
             return new PeerStatusResponse(
                     user,

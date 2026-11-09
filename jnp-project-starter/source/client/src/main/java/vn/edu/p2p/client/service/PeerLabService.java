@@ -89,7 +89,8 @@ public class PeerLabService {
         context.peerSessionService.validId(fileId);
         context.peerSessionService.ready();
         synchronized (context.storage.monitor()) {
-            if (!context.running.isEmpty() || !context.benchmarking.compareAndSet(false, true))
+            if (!context.running.isEmpty() || !context.jobs.findQueued().isEmpty()
+                    || !context.benchmarking.compareAndSet(false, true))
                 throw new IllegalArgumentException(
                         "Chỉ đo một lần và cần tạm dừng các phiên tải trước.");
         }

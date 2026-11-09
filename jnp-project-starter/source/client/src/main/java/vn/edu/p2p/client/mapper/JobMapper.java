@@ -9,7 +9,8 @@ import vn.edu.p2p.client.model.Job;
 
 @Component
 public class JobMapper {
-    public JobResponse toResponse(Job job, Entry entry, long completedBytes, long speed) {
+    public JobResponse toResponse(
+            Job job, Entry entry, long completedBytes, long speed, int queuePosition) {
         return new JobResponse(
                 job.id,
                 job.fileId,
@@ -20,7 +21,9 @@ public class JobMapper {
                 speed,
                 job.error,
                 new LinkedHashMap<>(job.sourceBytes),
-                entry.chunks.size());
+                entry.chunks.size(),
+                job.priority.name(),
+                queuePosition);
     }
 
     public DownloadResponse toDownloadResponse(Job job) {

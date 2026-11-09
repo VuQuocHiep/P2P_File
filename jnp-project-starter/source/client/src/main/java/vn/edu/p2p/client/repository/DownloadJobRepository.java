@@ -1,6 +1,8 @@
 package vn.edu.p2p.client.repository;
 
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Set;
 import org.springframework.stereotype.Repository;
 import vn.edu.p2p.client.model.Job;
@@ -28,6 +30,16 @@ public class DownloadJobRepository {
 
     public Collection<Job> findAll() {
         return storage.state().jobs.values();
+    }
+
+    public List<Job> findQueued() {
+        return findAll().stream()
+                .filter(job -> "QUEUED".equals(job.status))
+                .sorted(Comparator.comparing((Job job) -> job.priority)
+                        .thenComparingLong(job -> job.queueOrder)
+                        .thenComparingLong(job -> job.created)
+                        .thenComparing(job -> job.id))
+                .toList();
     }
 
     public Set<String> findIds() {

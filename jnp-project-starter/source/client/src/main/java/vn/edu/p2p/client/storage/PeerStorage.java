@@ -89,10 +89,11 @@ public class PeerStorage implements AutoCloseable {
         }
         for (Job j : state.jobs.values()) {
             Entry e = state.library.get(j.fileId);
+            if (j.priority == null) j.priority = DownloadPriority.NORMAL;
             if (j.chunkSources == null) j.chunkSources = new TreeMap<>();
             j.chunkSources.keySet().removeIf(index -> e == null || !e.chunks.contains(index));
             if (e != null && e.complete) j.status = "COMPLETED";
-            else {
+            else if (!"QUEUED".equals(j.status)) {
                 j.status = "PAUSED";
                 j.error = "Đã khôi phục tiến độ. Đăng nhập và bấm tiếp tục.";
             }

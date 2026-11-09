@@ -372,6 +372,7 @@ td small {
 }
 .badge.PENDING,
 .badge.WAITING,
+.badge.QUEUED,
 .badge.PAUSED {
   background: #3b3022;
   color: var(--warn);

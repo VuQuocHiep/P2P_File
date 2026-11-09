@@ -74,25 +74,82 @@ public class PeerDownloadService {
             Job job = context.jobs.findById(jobId);
             if (job == null || "COMPLETED".equals(job.status))
                 throw new IllegalArgumentException("Phiên tải không tồn tại hoặc đã hoàn tất.");
-            if (context.running.contains(jobId)) {
-                if ("PAUSED".equals(job.status))
-                    throw new IllegalArgumentException(
-                            "Đang dừng các kết nối. Thử lại sau vài giây.");
-                return;
-            }
-            if (context.running.size() >= 2)
-                throw new IllegalArgumentException("Tối đa 2 file tải đồng thời.");
-            job.status = "DOWNLOADING";
+            if (active(jobId) || "QUEUED".equals(job.status)) return;
+            String previousStatus = job.status, previousError = job.error;
+            long previousOrder = job.queueOrder;
+            job.status = "QUEUED";
             job.error = "";
-            context.running.add(jobId);
-            context.speedBytes.put(jobId, new AtomicLong());
-            context.speedStart.put(jobId, System.currentTimeMillis());
-            context.events.append(
-                    "Bắt đầu / tiếp tục tải "
-                            + context.library.findByFileId(job.fileId).manifest.name());
-            context.storage.saveCheckpoint();
+            job.queueOrder = context.jobs.findAll().stream()
+                    .mapToLong(j -> j.queueOrder).max().orElse(0) + 1;
+            try {
+                context.storage.saveCheckpoint();
+            } catch (RuntimeException e) {
+                job.status = previousStatus;
+                job.error = previousError;
+                job.queueOrder = previousOrder;
+                throw e;
+            }
+            dispatchQueued();
         }
-        context.coordinators.submit(() -> transfer(jobId));
+    }
+
+    /** Reserve slots and checkpoint before submitting; all queue decisions share the profile lock. */
+    void dispatchQueued() {
+        synchronized (context.storage.monitor()) {
+            if (context.closing || context.benchmarking.get()
+                    || context.tracker.token().isBlank() || context.user == null
+                    || !"APPROVED".equals(context.user.path("status").asText())
+                    || !"APPROVED".equals(context.peerStatus)) return;
+            var selected = context.jobs.findQueued().stream()
+                    .filter(job -> !context.running.contains(job.id))
+                    .limit(Math.max(0, 2 - context.running.size()))
+                    .toList();
+            if (selected.isEmpty()) return;
+            for (Job job : selected) {
+                job.status = "DOWNLOADING";
+                context.running.add(job.id);
+            }
+            try {
+                context.storage.saveCheckpoint();
+            } catch (RuntimeException e) {
+                for (Job job : selected) {
+                    job.status = "QUEUED";
+                    context.running.remove(job.id);
+                }
+                throw e;
+            }
+            for (Job job : selected) {
+                context.speedBytes.put(job.id, new AtomicLong());
+                context.speedStart.put(job.id, System.currentTimeMillis());
+                context.events.append("Bắt đầu / tiếp tục tải "
+                        + context.library.findByFileId(job.fileId).manifest.name());
+                context.coordinators.submit(() -> transfer(job.id));
+            }
+        }
+    }
+
+    public MessageResponse priority(String jobId, String value) {
+        DownloadPriority priority;
+        try {
+            priority = DownloadPriority.valueOf(Objects.toString(value, ""));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Độ ưu tiên phải là HIGH, NORMAL hoặc LOW.");
+        }
+        synchronized (context.storage.monitor()) {
+            Job job = context.jobs.findById(jobId);
+            if (job == null || "COMPLETED".equals(job.status))
+                throw new IllegalArgumentException("Phiên tải không tồn tại hoặc đã hoàn tất.");
+            DownloadPriority previous = job.priority;
+            job.priority = priority;
+            try {
+                context.storage.saveCheckpoint();
+            } catch (RuntimeException e) {
+                job.priority = previous;
+                throw e;
+            }
+            dispatchQueued();
+        }
+        return new MessageResponse("Đã cập nhật độ ưu tiên. Các file đang tải tiếp tục chạy.");
     }
 
     public void pause(String jobId) {
@@ -101,9 +158,11 @@ public class PeerDownloadService {
             if (job == null) throw new IllegalArgumentException("Không có phiên tải.");
             if (!"COMPLETED".equals(job.status)) {
                 job.status = "PAUSED";
+                job.error = "";
                 context.events.append("Tạm dừng phiên " + jobId);
                 context.storage.saveCheckpoint();
             }
+            dispatchQueued();
         }
     }
 
@@ -113,7 +172,8 @@ public class PeerDownloadService {
             return !context.closing
                     && !context.tracker.token().isBlank()
                     && job != null
-                    && !Set.of("PAUSED", "COMPLETED", "ERROR").contains(job.status);
+                    && context.running.contains(jobId)
+                    && Set.of("DOWNLOADING", "WAITING").contains(job.status);
         }
     }
 
@@ -252,7 +312,7 @@ public class PeerDownloadService {
         } catch (Exception e) {
             synchronized (context.storage.monitor()) {
                 Job j = context.jobs.findById(jobId);
-                if (j != null && !"PAUSED".equals(j.status)) {
+                if (j != null && active(jobId)) {
                     j.status = "ERROR";
                     j.error = Objects.toString(e.getMessage(), e.getClass().getSimpleName());
                 }
@@ -260,8 +320,11 @@ public class PeerDownloadService {
             }
         } finally {
             workers.shutdownNow();
-            context.downloadPools.remove(jobId);
-            context.running.remove(jobId);
+            synchronized (context.storage.monitor()) {
+                context.downloadPools.remove(jobId);
+                context.running.remove(jobId);
+                dispatchQueued();
+            }
             report(jobId);
         }
     }
