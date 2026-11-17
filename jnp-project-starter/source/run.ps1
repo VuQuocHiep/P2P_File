@@ -4,7 +4,8 @@ param(
     [int]$TcpPort = 9001,
     [string]$DataDir = '',
     [string]$TrackerUrl = 'http://127.0.0.1:8080',
-    [int]$UploadDelayMs = 0
+    [int]$UploadDelayMs = 0,
+    [switch]$UseH2
 )
 $ErrorActionPreference = 'Stop'
 if ($WebPort -eq 0) { $WebPort = if ($Role -eq 'server') { 8080 } else { 8081 } }
@@ -17,10 +18,9 @@ $temporary = Join-Path $DataDir 'temp'
 New-Item -ItemType Directory -Force -Path $temporary | Out-Null
 $javaArgs = @("-Djava.io.tmpdir=$temporary", '-jar', $jar, "--server.port=$WebPort")
 if ($Role -eq 'server') {
-    if (-not (Test-Path -LiteralPath (Join-Path $DataDir 'database.mv.db')) -and -not $env:ADMIN_PASSWORD) {
-        throw 'Lan dau: dat bien moi truong ADMIN_PASSWORD (12-72 ky tu) truoc khi chay server.'
+    if ($UseH2 -or $env:USE_H2) {
+        $javaArgs += @("--spring.profiles.active=h2", "--spring.datasource.url=jdbc:h2:file:$DataDir/database")
     }
-    $javaArgs += "--spring.datasource.url=jdbc:h2:file:$DataDir/database"
 } else {
     $javaArgs += @("--peer.tcp-port=$TcpPort", "--peer.data=$DataDir", "--peer.tracker=$TrackerUrl", "--peer.upload-delay-ms=$UploadDelayMs")
 }

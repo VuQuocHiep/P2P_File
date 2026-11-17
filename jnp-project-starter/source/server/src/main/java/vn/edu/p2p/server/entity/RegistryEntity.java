@@ -13,7 +13,7 @@ public class RegistryEntity {
     @Id private Integer id;
 
     @Lob
-    @Column(nullable = false, columnDefinition = "CLOB")
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String payload;
 
     protected RegistryEntity() {}
