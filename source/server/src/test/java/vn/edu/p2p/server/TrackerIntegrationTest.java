@@ -237,7 +237,7 @@ class TrackerIntegrationTest {
                 "status",
                 "submittedBy",
                 "sources",
-                "holders", "malware", "scanStage");
+                "holders", "malware", "scanStage", "roomId");
         approveFile(id);
         var sources = json.readTree(send(http, "GET", "/files/" + id + "/sources", null).body());
         assertEquals(1, sources.size());

@@ -8,6 +8,7 @@ import vn.edu.p2p.server.entity.FileEntity;
 public class FileMapper {
     public FileResponse toResponse(FileEntity file, long onlineSources) {
         return new FileResponse(
-                file.manifest, file.status, file.submittedBy, onlineSources, file.holders.size(), file.malware, file.scanStage);
+                file.manifest, file.status, file.submittedBy, onlineSources, file.holders.size(),
+                file.malware, file.scanStage, file.roomId);
     }
 }

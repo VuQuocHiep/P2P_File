@@ -5,6 +5,10 @@ export function createPeerState() {
     snapshot: null,
     catalog: [],
     query: '',
+    rooms: [],
+    roomFiles: {},
+    roomRequests: {},
+    roomMembers: {},
     lab: { selected: '', busy: false },
   };
 }
@@ -12,6 +16,7 @@ export function createPeerState() {
 export const titles = {
   lab: 'Phòng thí nghiệm P2P',
   explore: 'Khám phá file',
+  rooms: 'Phòng chia sẻ',
   downloads: 'Phiên tải của tôi',
   library: 'Thư viện chia sẻ',
   activity: 'Hoạt động peer',
@@ -20,6 +25,7 @@ export const titles = {
 export const notes = {
   lab: 'Quan sát kết nối thật, đo hiệu năng và thử khả năng phục hồi.',
   explore: 'Tìm file trong mạng và kết nối trực tiếp đến các nguồn.',
+  rooms: 'Tạo phòng riêng, duyệt thành viên và chia sẻ file trong phòng.',
   downloads: 'Theo dõi từng phần, từng nguồn và tiến độ đã lưu.',
   library: 'Những file và phần file bạn đang đóng góp cho mạng.',
   activity: 'Thông tin thiết bị, kết nối và nhật ký cục bộ.',

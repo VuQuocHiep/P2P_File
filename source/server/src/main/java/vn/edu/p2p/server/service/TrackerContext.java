@@ -22,12 +22,15 @@ final class TrackerContext {
     final TransferRepository transfers;
     final AuditRepository audits;
     final FileDeletionRepository deletions;
+    final RoomRepository rooms;
+    final RoomMemberRepository roomMembers;
     private final PlatformTransactionManager transactionManager;
     final BCryptPasswordEncoder passwords = new BCryptPasswordEncoder();
     final Map<String, Session> sessions = new HashMap<>();
     final Map<String, Ticket> tickets = new HashMap<>();
     final Set<String> malwareChecks = new HashSet<>();
-    long nextAccountPosition, nextPeerPosition, nextFilePosition, nextTransferPosition;
+    long nextAccountPosition, nextPeerPosition, nextFilePosition, nextTransferPosition,
+            nextRoomPosition;
 
     TrackerContext(
             AccountRepository accounts,
@@ -36,6 +39,8 @@ final class TrackerContext {
             TransferRepository transfers,
             AuditRepository audits,
             FileDeletionRepository deletions,
+            RoomRepository rooms,
+            RoomMemberRepository roomMembers,
             LegacyRegistryMigration migration,
             PlatformTransactionManager transactionManager,
             @Value("${peermesh.admin.username}") String admin,
@@ -47,6 +52,8 @@ final class TrackerContext {
         this.transfers = transfers;
         this.audits = audits;
         this.deletions = deletions;
+        this.rooms = rooms;
+        this.roomMembers = roomMembers;
         this.transactionManager = transactionManager;
         migration.migrate();
         var transaction = beginTransaction();
@@ -60,6 +67,8 @@ final class TrackerContext {
                     files.findFirstByOrderByPositionDesc().map(f -> f.position + 1).orElse(0L);
             nextTransferPosition =
                     transfers.findFirstByOrderByPositionDesc().map(t -> t.position + 1).orElse(0L);
+            nextRoomPosition =
+                    rooms.findFirstByOrderByPositionDesc().map(r -> r.position + 1).orElse(0L);
             if (accounts.findAllByOrderByPositionAsc().stream()
                     .noneMatch(a -> "ADMIN".equals(a.role))) {
                 TrackerAccess.checkName(admin);

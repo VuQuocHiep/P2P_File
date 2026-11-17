@@ -38,6 +38,7 @@ Tracker lưu metadata. Nội dung file truyền trực tiếp giữa các peer. 
 | Vé tải 60 giây theo nguồn và file | Tối đa 4 kết nối / file, 2 file tải đồng thời |
 | Kiểm tra lại quyền khi nguồn xác thực vé | Ưu tiên phần hiếm có nguồn; tự đổi nguồn khi lỗi |
 | Dashboard và báo cáo phiên tải | Tạm dừng, tiếp tục và khôi phục sau restart |
+| Duyệt thành viên phòng chia sẻ | Tạo phòng kín, xin vào, chủ phòng duyệt / từ chối, tải file trong phòng |
 | Nhật ký phê duyệt và đăng nhập | SHA-256 từng phần và toàn file |
 | MySQL lưu bền vững registry | Chia sẻ lại phần đã xác minh / file tải xong |
 | BCrypt, session / bearer hết hạn sau 12 giờ | Bật / dừng chia sẻ, lưu file về máy |
@@ -230,6 +231,19 @@ UploadDelayMs tạo độ trễ demo mỗi chunk để quan sát quá trình t�
 
 Nếu tải quá nhanh, dùng file lớn hơn hoặc tăng độ trễ demo. Giao diện dùng tiến độ thực tế.
 
+## Phòng chia sẻ
+
+Mỗi tài khoản đã được duyệt có thể tạo **phòng** để chia sẻ file trong một nhóm kín. Phòng có tên, mã phòng và mật khẩu tùy chọn; nội dung file vẫn truyền trực tiếp giữa các peer qua TCP, tracker chỉ giữ metadata và quyết định ai được tải.
+
+- **Tạo phòng:** tab **Phòng chia sẻ** → nhập tên, mã phòng (để trống thì tracker tự sinh 8 ký tự) và mật khẩu 6–64 ký tự nếu cần. Người tạo là chủ phòng và tự động là thành viên.
+- **Xin vào phòng:** nhập mã phòng và mật khẩu nếu có; yêu cầu ở trạng thái `PENDING`. Sai mật khẩu bị từ chối ngay, không tạo yêu cầu.
+- **Chủ phòng duyệt:** thẻ phòng hiện danh sách **Yêu cầu vào phòng** với nút **Duyệt** / **Từ chối**. Chỉ chủ phòng gọi được API duyệt; người bị từ chối có thể gửi lại yêu cầu.
+- **Quản lý phòng (chủ phòng):** đổi tên, đặt / đổi / bỏ mật khẩu, đuổi thành viên và xoá phòng. Đuổi thành viên thu hồi quyền tải ngay; xoá phòng xoá luôn file của phòng khỏi tracker và phát lệnh dọn bản lưu tới các peer.
+- **Chia sẻ file:** thành viên đã duyệt chọn một file đang bật chia sẻ trong **Thư viện** rồi bấm **Chia sẻ vào phòng**. File vẫn đi qua bước admin duyệt như danh mục công khai.
+- **Tải file:** file trong phòng hiện ở thẻ phòng kèm trạng thái và số nguồn; bấm **Tải về** như file công khai. Vé tải chỉ cấp cho thành viên đã duyệt.
+
+Quy tắc truy cập: file thuộc phòng **không** xuất hiện trong tìm kiếm công khai; `GET /api/files/{id}/sources` và `POST /api/tickets` đều kiểm tra lại tư cách thành viên, kể cả khi nguồn xác thực vé. Mỗi file chỉ thuộc một phòng, và chủ phòng không thể tự chuyển file sang phòng khác. Chủ phòng duyệt người, admin duyệt nội dung file.
+
 ## Phòng thí nghiệm P2P
 
 Sau khi đăng nhập, mở **Phòng thí nghiệm** trên thanh bên của peer.
@@ -385,7 +399,7 @@ Tracker dùng MySQL 8 (utf8mb4) qua Spring Data JPA; `spring.jpa.hibernate.ddl-a
 mysql -u root -p < source/server/src/main/resources/schema-mysql.sql
 ```
 
-File [`schema-mysql.sql`](source/server/src/main/resources/schema-mysql.sql) tạo database `peermesh` và các bảng `tracker_accounts`, `tracker_peers`, `tracker_files`, `tracker_transfers`, `tracker_audit`, `tracker_file_deletions`, `tracker_migrations` cùng bảng `registry`. Nếu chỉ tạo database rỗng, Hibernate vẫn tạo bảng khi tracker khởi động lần đầu.
+File [`schema-mysql.sql`](source/server/src/main/resources/schema-mysql.sql) tạo database `peermesh` và các bảng `tracker_accounts`, `tracker_peers`, `tracker_files` (có cột `room_id`), `tracker_transfers`, `tracker_audit`, `tracker_file_deletions`, `tracker_migrations`, `tracker_rooms`, `tracker_room_members` cùng bảng `registry`. Nếu chỉ tạo database rỗng, Hibernate vẫn tạo bảng khi tracker khởi động lần đầu.
 
 **Cấu hình:** các biến `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` trong bảng trên. Driver và dialect để Spring/Hibernate tự nhận theo URL, nên cùng một bản build chạy được cả MySQL và H2; chuỗi kết nối dùng `utf8mb4`, `serverTimezone=Asia/Ho_Chi_Minh` và `allowPublicKeyRetrieval=true` cho MySQL 8.
 
@@ -415,8 +429,8 @@ Mutation HTTP cần header `X-PeerMesh: 1`. Web dùng session cookie HttpOnly, S
 | /api/auth/logout | POST | Hủy token / session |
 | /api/peers | POST | {id,name,host,port} |
 | /api/peers/heartbeat | POST | {peerId} |
-| /api/files | POST | {peerId,manifest,chunks} |
-| /api/files?q=... | GET | Tìm file đã duyệt |
+| /api/files | POST | {peerId,manifest,chunks,roomId?} |
+| /api/files?q=... | GET | Tìm file công khai và file trong phòng đã tham gia |
 | /api/files/{id}/sources | GET | Nguồn online và các chunk đang giữ |
 | /api/files/{id}/holders/{peerId} | DELETE | Dừng quảng bá nguồn của mình |
 | /api/tickets | POST | {fileId,sourceId} → vé 60 giây |
@@ -424,6 +438,16 @@ Mutation HTTP cần header `X-PeerMesh: 1`. Web dùng session cookie HttpOnly, S
 | /api/transfers | POST | Báo cáo id, peerId, fileId, status, bytes |
 | /api/admin/dashboard | GET | ADMIN: registry, báo cáo và audit |
 | /api/admin/{kind}/{id} | PATCH | ADMIN: {status}; kind = accounts / peers / files |
+| /api/rooms | GET | Phòng tôi sở hữu hoặc đã tham gia |
+| /api/rooms | POST | {name,id?,password?} → tạo phòng |
+| /api/rooms/{id}/join | POST | {password?} → yêu cầu vào phòng (PENDING) |
+| /api/rooms/{id}/requests | GET | Chủ phòng: yêu cầu đang chờ duyệt |
+| /api/rooms/{id}/requests/{username} | PATCH | Chủ phòng: {status: APPROVED / REJECTED} |
+| /api/rooms/{id}/members | GET | Thành viên đã duyệt |
+| /api/rooms/{id}/files | GET | File trong phòng (chỉ thành viên) |
+| /api/rooms/{id} | PATCH | Chủ phòng: {name?, password?}; password rỗng = bỏ mật khẩu |
+| /api/rooms/{id} | DELETE | Chủ phòng: xoá phòng và toàn bộ file của phòng |
+| /api/rooms/{id}/members/{username} | DELETE | Chủ phòng: đuổi thành viên |
 
 Trạng thái: PENDING, APPROVED, BLOCKED. ADMIN không tự khóa qua API này. File chỉ xuất hiện trong tìm kiếm khi được duyệt. Nguồn kiểm tra lại quyền mỗi lần nhận yêu cầu chunk; các phần đã gửi trước khi khóa vẫn ở máy nhận.
 
@@ -443,6 +467,17 @@ Trạng thái: PENDING, APPROVED, BLOCKED. ADMIN không tự khóa qua API này.
 | /api/downloads | POST | {fileId} |
 | /api/downloads/{id}/pause | POST | Tạm dừng |
 | /api/downloads/{id}/resume | POST | Tiếp tục |
+| /api/rooms | GET | Danh sách phòng kèm vai trò, số thành viên, số file |
+| /api/rooms | POST | {name,id?,password?} → tạo phòng |
+| /api/rooms/{id}/join | POST | {password?} → gửi yêu cầu vào phòng |
+| /api/rooms/{id}/requests | GET | Chủ phòng: yêu cầu chờ duyệt |
+| /api/rooms/{id}/requests/{username} | PATCH | {status: APPROVED / REJECTED} |
+| /api/rooms/{id}/members | GET | Thành viên phòng |
+| /api/rooms/{id}/files | GET | File trong phòng |
+| /api/rooms/{id}/files/{fileId} | PATCH | Đưa file trong thư viện vào phòng |
+| /api/rooms/{id} | PATCH | {name?, password?} → đổi tên / mật khẩu phòng |
+| /api/rooms/{id} | DELETE | Xoá phòng và file của phòng |
+| /api/rooms/{id}/members/{username} | DELETE | Đuổi thành viên |
 
 ### WebSocket
 
@@ -525,6 +560,7 @@ E2E sử dụng HTTP 18080–18083, TCP 19001–19003, dữ liệu riêng ở `s
 - Tốc độ là trung bình từ lần bắt đầu / tiếp tục phiên tải; dữ liệu gửi tính trong lần chạy peer hiện tại. Server nhận tiến độ do peer báo cáo.
 - MySQL lưu account, peer, file, transfer và audit ở các bảng riêng qua JPA. Manifest và danh sách chunk theo holder nằm trong các cột JSON của từng file; có thể chuẩn hóa tiếp khi cần truy vấn từng chunk bằng SQL.
 - Chưa có đổi / quên mật khẩu, tự phát hiện IP LAN hoặc xóa dữ liệu trên giao diện. Khóa / ẩn / dừng chia sẻ có thể khôi phục.
+- Phòng chia sẻ chưa có mời trực tiếp, chuyển quyền chủ phòng hoặc giới hạn dung lượng theo phòng; file trong phòng vẫn cần admin duyệt nội dung.
 - Trước khi nộp: điền thông tin nhóm, thêm ảnh demo thực tế, thử trên nhiều máy LAN, phân chia công việc và giải thích phần code phụ trách.
 
 ## Tài liệu tham khảo

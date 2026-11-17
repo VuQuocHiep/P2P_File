@@ -2,6 +2,7 @@ import { $, updateHTML } from '/assets/js/dom.js';
 import { ready, titles, notes } from '../state.js';
 import { statCards } from './stats.js';
 import { explore } from './explore.js';
+import { rooms } from './rooms.js';
 import { downloads } from './downloads.js';
 import { library } from './library.js';
 import { activity } from './activity.js';
@@ -56,6 +57,8 @@ export function createPeerRenderer(model) {
       $('#content'),
       {
         explore: () => explore(state, catalog, query),
+        rooms: () =>
+          rooms(state, model.rooms, model.roomRequests, model.roomFiles, model.roomMembers),
         downloads: () => downloads(state),
         library: () => library(state),
         activity: () => activity(state),

@@ -14,10 +14,13 @@ import vn.edu.p2p.server.dto.response.*;
 public class TrackerTicketService {
     private final TrackerContext context;
     private final TrackerAccess access;
+    private final TrackerRoomService roomService;
 
-    public TrackerTicketService(TrackerContext context, TrackerAccess access) {
+    public TrackerTicketService(
+            TrackerContext context, TrackerAccess access, TrackerRoomService roomService) {
         this.context = context;
         this.access = access;
+        this.roomService = roomService;
     }
 
     public TicketResponse ticket(String token, TicketRequest input) {
@@ -34,6 +37,7 @@ public class TrackerTicketService {
                                 && access.online(p)
                                 && f.holders.containsKey(p.id),
                         "Nguồn không khả dụng.");
+                if (f.roomId != null) roomService.requireMember(a.username, f.roomId);
                 context.tickets
                         .entrySet()
                         .removeIf(e -> e.getValue().expires() < System.currentTimeMillis());
@@ -62,6 +66,10 @@ public class TrackerTicketService {
                 PeerEntity p = access.ownPeer(access.account(token, true), input.peerId(), true);
                 Ticket ticket = context.tickets.get(input.ticket());
                 FileEntity f = context.files.findFileById(input.fileId()).orElse(null);
+                AccountEntity requester =
+                        context.accounts
+                                .findByUsername(ticket == null ? "" : ticket.username())
+                                .orElse(null);
                 if (ticket == null
                         || ticket.expires() < System.currentTimeMillis()
                         || !ticket.sourceId().equals(p.id)
@@ -69,14 +77,11 @@ public class TrackerTicketService {
                         || f == null
                         || !"APPROVED".equals(f.status)
                         || !f.holders.containsKey(p.id)
-                        || !"APPROVED"
-                                .equals(
-                                        context.accounts
-                                                .findByUsername(ticket.username())
-                                                .orElse(null)
-                                                .status))
+                        || requester == null
+                        || !"APPROVED".equals(requester.status))
                     throw new ResponseStatusException(
                             HttpStatus.FORBIDDEN, "Vé tải hết hạn hoặc quyền tải đã bị thu hồi.");
+                if (f.roomId != null) roomService.requireMember(requester.username, f.roomId);
                 return new AuthorizationResponse(true);
             } catch (Exception | Error failure) {
                 context.rollback(transaction);

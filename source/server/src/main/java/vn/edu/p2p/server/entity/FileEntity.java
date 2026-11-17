@@ -19,6 +19,9 @@ public class FileEntity extends OrderedEntity {
 
     public String status, submittedBy;
 
+    /** Null for the public catalog; otherwise the room that owns this entry. */
+    public String roomId;
+
     @Lob
     @Convert(converter = vn.edu.p2p.server.entity.converter.MalwareReportConverter.class)
     public vn.edu.p2p.server.dto.response.MalwareReport malware;

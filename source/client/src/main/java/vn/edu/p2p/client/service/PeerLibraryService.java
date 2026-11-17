@@ -24,19 +24,15 @@ public class PeerLibraryService {
     }
 
     void advertise(String fileId) throws Exception {
-        Map<String, Object> body;
+        Map<String, Object> body = new HashMap<>();
         synchronized (context.storage.monitor()) {
             Entry entry = context.library.findByFileId(fileId);
             if (entry == null || !entry.sharing) return;
-            body =
-                    Map.of(
-                            "peerId",
-                            context.profile.getPeerId(),
-                            "manifest",
-                            entry.manifest,
-                            "chunks",
-                            new ArrayList<>(entry.chunks),
-                            "scanConsent", entry.scanConsent);
+            body.put("peerId", context.profile.getPeerId());
+            body.put("manifest", entry.manifest);
+            body.put("chunks", new ArrayList<>(entry.chunks));
+            body.put("scanConsent", entry.scanConsent);
+            if (entry.roomId != null && !entry.roomId.isBlank()) body.put("roomId", entry.roomId);
         }
         JsonNode result;
         try {

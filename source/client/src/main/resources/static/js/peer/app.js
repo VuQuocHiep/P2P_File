@@ -11,6 +11,7 @@ import { createLibraryActions } from './actions/library.js';
 import { createLabActions } from './actions/lab.js';
 import { createFileDialogs } from './dialogs/sources.js';
 import { createBandwidthActions } from './actions/bandwidth.js';
+import { createRoomActions } from './actions/rooms.js';
 
 initializeUI();
 const model = createPeerState();
@@ -32,6 +33,7 @@ const download = createDownloadActions({ model, data, requests });
 const library = createLibraryActions({ model, data, requests });
 const lab = createLabActions({ model, data, requests });
 const bandwidth = createBandwidthActions({ model, data, requests });
+const room = createRoomActions({ data, requests });
 let searchTimer;
 
 function render() {
@@ -60,6 +62,16 @@ $('#upload-form').addEventListener('submit', (event) => {
 $('#bandwidth-form').addEventListener('submit', (event) => {
   event.preventDefault();
   bandwidth.save(event.target).catch((error) => UI.toast(error.message, true));
+});
+document.addEventListener('submit', (event) => {
+  if (event.target.id === 'room-create-form') {
+    event.preventDefault();
+    room.create(event.target).catch((error) => UI.toast(error.message, true));
+  }
+  if (event.target.id === 'room-join-form') {
+    event.preventDefault();
+    room.join(event.target).catch((error) => UI.toast(error.message, true));
+  }
 });
 
 document.addEventListener('input', (event) => {
@@ -97,11 +109,22 @@ document.addEventListener('click', async (event) => {
       model.tab = button.dataset.tab;
       render();
       if (model.tab === 'explore') await data.loadCatalog();
+      if (model.tab === 'rooms') await data.loadRooms();
       return;
     }
     if (button.id === 'refresh-catalog') return await data.loadCatalog();
     const { action, id } = button.dataset;
     if (action === 'bandwidth') bandwidth.open();
+    else if (action === 'room-approve')
+      await room.decide(button.dataset.room, button.dataset.user, 'APPROVED');
+    else if (action === 'room-reject')
+      await room.decide(button.dataset.room, button.dataset.user, 'REJECTED');
+    else if (action === 'room-rename') await room.rename(button.dataset.room, button.dataset.name);
+    else if (action === 'room-password')
+      await room.password(button.dataset.room, button.dataset.hasPassword === 'true');
+    else if (action === 'room-kick') await room.kick(button.dataset.room, button.dataset.user);
+    else if (action === 'room-delete') await room.destroy(button.dataset.room, button.dataset.name);
+    else if (action === 'room-share') await room.share(button.dataset.room);
     else if (['download', 'pause', 'resume'].includes(action)) await download(action, id);
     else if (['sharing', 'scan-consent'].includes(action))
       await library.change(action, id, button.dataset.enabled === 'true');

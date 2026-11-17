@@ -17,16 +17,19 @@ public class TrackerFileService {
     private final TrackerAccess access;
     private final FileMapper fileMapper;
     private final PeerMapper peerMapper;
+    private final TrackerRoomService roomService;
 
     public TrackerFileService(
             TrackerContext context,
             TrackerAccess access,
             FileMapper fileMapper,
-            PeerMapper peerMapper) {
+            PeerMapper peerMapper,
+            TrackerRoomService roomService) {
         this.context = context;
         this.access = access;
         this.fileMapper = fileMapper;
         this.peerMapper = peerMapper;
+        this.roomService = roomService;
     }
 
     public FileResponse advertise(String token, Advertisement input) {
@@ -55,6 +58,11 @@ public class TrackerFileService {
                                                                                 .hashes()
                                                                                 .size()),
                         "Danh sách chunk không hợp lệ.");
+                String roomId =
+                        input.roomId() == null || input.roomId().isBlank()
+                                ? null
+                                : input.roomId().trim();
+                if (roomId != null) roomService.requireMember(a.username, roomId);
                 FileEntity file = context.files.findFileById(input.manifest().id()).orElse(null);
                 if (file == null) {
                     file = new FileEntity();
@@ -62,12 +70,17 @@ public class TrackerFileService {
                     file.status = "PENDING";
                     file.submittedBy = a.username;
                     file.id = file.manifest.id();
+                    file.roomId = roomId;
                     file.position = context.nextFilePosition++;
                     context.log(a.username, "SUBMIT_FILE", file.manifest.name());
-                } else
+                } else {
                     access.require(
                             file.manifest.sameContent(input.manifest()),
                             "Manifest xung đột với file đã đăng ký.");
+                    access.require(
+                            java.util.Objects.equals(file.roomId, roomId),
+                            "File đã thuộc phòng khác hoặc đã ở danh mục công khai.");
+                }
                 file.holders.put(p.id, List.copyOf(input.chunks()));
                 if (input.scanConsent()) file.scanConsentPeers.add(p.id);
                 else file.scanConsentPeers.remove(p.id);
@@ -106,7 +119,7 @@ public class TrackerFileService {
         synchronized (context) {
             var transaction = context.beginTransaction();
             try {
-                access.account(token, true);
+                AccountEntity account = access.account(token, true);
                 String q = query == null ? "" : query.toLowerCase(Locale.ROOT);
                 return context.files.findAllByOrderByPositionAsc().stream()
                         .filter(
@@ -116,6 +129,10 @@ public class TrackerFileService {
                                                         .name()
                                                         .toLowerCase(Locale.ROOT)
                                                         .contains(q))
+                        .filter(
+                                f ->
+                                        f.roomId == null
+                                                || roomService.member(account.username, f.roomId))
                         .map(f -> fileMapper.toResponse(f, access.onlineSources(f)))
                         .toList();
             } catch (Exception | Error failure) {
@@ -131,11 +148,12 @@ public class TrackerFileService {
         synchronized (context) {
             var transaction = context.beginTransaction();
             try {
-                access.account(token, true);
+                AccountEntity account = access.account(token, true);
                 FileEntity f = context.files.findFileById(fileId).orElse(null);
                 access.require(
                         f != null && "APPROVED".equals(f.status),
                         "File chưa được duyệt hoặc đã bị ẩn.");
+                if (f.roomId != null) roomService.requireMember(account.username, f.roomId);
                 var result = new ArrayList<SourceResponse>();
                 f.holders.forEach(
                         (id, chunks) -> {

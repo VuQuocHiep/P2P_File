@@ -10,5 +10,7 @@ public interface FileRepository extends JpaRepository<FileEntity, String> {
 
     List<FileEntity> findAllByOrderByPositionAsc();
 
+    List<FileEntity> findByRoomIdOrderByPositionAsc(String roomId);
+
     Optional<FileEntity> findFirstByOrderByPositionDesc();
 }

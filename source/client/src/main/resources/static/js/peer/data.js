@@ -49,6 +49,39 @@ export function createPeerData({ model, render, showLogin, showApp, client = pee
     }
   }
 
+  async function loadRooms() {
+    if (model.snapshot?.user?.status !== 'APPROVED') return;
+    const session = generation;
+    try {
+      const list = await client.rooms();
+      if (session !== generation) return;
+      const member = (room) => room.mine || room.membership === 'APPROVED';
+      const files = await Promise.all(
+        list.map((room) => (member(room) ? client.roomFiles(room.id).catch(() => []) : [])),
+      );
+      const requests = await Promise.all(
+        list.map((room) => (room.mine ? client.roomRequests(room.id).catch(() => []) : [])),
+      );
+      const members = await Promise.all(
+        list.map((room) => (room.mine ? client.roomMembers(room.id).catch(() => []) : [])),
+      );
+      if (session !== generation) return;
+      model.rooms = list;
+      model.roomFiles = Object.fromEntries(list.map((room, i) => [room.id, files[i]]));
+      model.roomRequests = Object.fromEntries(list.map((room, i) => [room.id, requests[i]]));
+      model.roomMembers = Object.fromEntries(list.map((room, i) => [room.id, members[i]]));
+      if (model.tab === 'rooms') render();
+    } catch (error) {
+      if (session !== generation) return;
+      model.rooms = [];
+      model.roomFiles = {};
+      model.roomRequests = {};
+      model.roomMembers = {};
+      if (model.tab === 'rooms') render();
+      if (error.status !== 403) UI.toast(error.message, true);
+    }
+  }
+
   function poll() {
     if (polling) return polling;
     const session = generation;
@@ -75,6 +108,7 @@ export function createPeerData({ model, render, showLogin, showApp, client = pee
   return {
     poll,
     loadCatalog,
+    loadRooms,
     acceptSnapshot,
     invalidate,
     get session() {

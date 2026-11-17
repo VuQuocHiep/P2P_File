@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS tracker_files (
     scan_next_at        BIGINT,
     scan_failures       INT,
     holders             LONGTEXT,
+    room_id             VARCHAR(255),
     registry_position   BIGINT NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -75,3 +76,26 @@ CREATE TABLE IF NOT EXISTS registry (
     id      INT NOT NULL PRIMARY KEY,
     payload LONGTEXT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS tracker_rooms (
+    id                VARCHAR(24) NOT NULL PRIMARY KEY,
+    name              VARCHAR(60) NOT NULL,
+    owner             VARCHAR(255) NOT NULL,
+    password_hash     VARCHAR(255),
+    status            VARCHAR(255) NOT NULL,
+    created           BIGINT NOT NULL DEFAULT 0,
+    registry_position BIGINT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS tracker_room_members (
+    id                VARCHAR(300) NOT NULL PRIMARY KEY,
+    room_id           VARCHAR(24) NOT NULL,
+    username          VARCHAR(255) NOT NULL,
+    status            VARCHAR(255) NOT NULL,
+    requested_at      BIGINT NOT NULL DEFAULT 0,
+    decided_at        BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uq_room_member UNIQUE (room_id, username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Nâng cấp database đã có sẵn (Hibernate ddl-auto=update cũng tự thêm cột):
+-- ALTER TABLE tracker_files ADD COLUMN room_id VARCHAR(255);

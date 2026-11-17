@@ -8,5 +8,9 @@ public class Entry {
     public boolean complete, sharing = true;
     public boolean scanConsent;
     public String catalogStatus = "PENDING";
+
+    /** Room this file was published to; null keeps it in the public catalog. */
+    public String roomId;
+
     public Set<Integer> chunks = new TreeSet<>();
 }
