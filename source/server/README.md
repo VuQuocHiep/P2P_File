@@ -1,6 +1,6 @@
 # PeerMesh Server / Tracker
 
-Java 17 + Spring Boot 3.5.16 + H2. Quản lý tài khoản, duyệt peer / file, tìm nguồn, cấp vé tải, dashboard và nhật ký.
+Java 17 + Spring Boot 3.5.16 + MySQL 8 (H2 dự phòng qua profile `h2`). Quản lý tài khoản, duyệt peer / file, tìm nguồn, cấp vé tải, dashboard và nhật ký.
 
 Hướng dẫn đầy đủ về build, cấu hình, chạy, API, giao thức và demo nằm ở [README chính](../../README.md).
 

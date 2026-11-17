@@ -58,6 +58,7 @@ class LegacyRegistryStartupTest {
         String[] args = {
             "--server.port=0",
             "--spring.datasource.url=" + url,
+            "--spring.datasource.username=sa",
             "--spring.datasource.password=",
             "--peermesh.admin.username=admin",
             "--peermesh.admin.password=test-admin-secret-2026"
