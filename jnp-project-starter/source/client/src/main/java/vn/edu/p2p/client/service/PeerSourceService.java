@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import vn.edu.p2p.client.dto.response.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
+import java.util.function.BooleanSupplier;
 
 @Service
 public class PeerSourceService {
@@ -23,6 +24,12 @@ public class PeerSourceService {
 
     byte[] fetchObserved(Source source, Manifest manifest, int index, String purpose)
             throws IOException {
+        return fetchObserved(source, manifest, index, purpose, () -> false);
+    }
+
+    byte[] fetchObserved(
+            Source source, Manifest manifest, int index, String purpose,
+            BooleanSupplier cancelled) throws IOException {
         String key = UUID.randomUUID().toString();
         Map<String, Object> link =
                 Map.of(
@@ -44,7 +51,7 @@ public class PeerSourceService {
         try {
             byte[] bytes =
                     context.tcpClient.fetch(
-                            source.host(), source.port(), source.ticket(), manifest, index);
+                            source.host(), source.port(), source.ticket(), manifest, index, cancelled);
             context.sourceReceived
                     .computeIfAbsent(source.id(), id -> new AtomicLong())
                     .addAndGet(bytes.length);

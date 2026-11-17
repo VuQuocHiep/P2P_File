@@ -167,5 +167,51 @@
       </div>
       <div id="sources-content"></div>
     </dialog>
+    <dialog id="bandwidth-dialog">
+      <div class="dialog-top">
+        <h2>Cài đặt băng thông</h2>
+        <button type="button" class="ghost small" data-close="bandwidth-dialog" aria-label="Đóng">
+          ✕
+        </button>
+      </div>
+      <p class="section-note" id="bandwidth-help">
+        Nhập KiB/s (1024 KiB/s = 1 MiB/s). Đặt 0 để không giới hạn. Cài đặt áp dụng ngay cho dữ liệu
+        TCP đang truyền và được giữ sau khi khởi động lại peer.
+      </p>
+      <form id="bandwidth-form">
+        <div class="field-row">
+          <div class="field">
+            <label for="upload-limit-kib">Giới hạn upload (KiB/s)</label>
+            <input
+              id="upload-limit-kib"
+              name="uploadLimitKiB"
+              type="number"
+              min="0"
+              max="1048576"
+              step="1"
+              value="0"
+              required
+              aria-describedby="bandwidth-help"
+            />
+          </div>
+          <div class="field">
+            <label for="download-limit-kib">Giới hạn download (KiB/s)</label>
+            <input
+              id="download-limit-kib"
+              name="downloadLimitKiB"
+              type="number"
+              min="0"
+              max="1048576"
+              step="1"
+              value="0"
+              required
+              aria-describedby="bandwidth-help"
+            />
+          </div>
+        </div>
+        <p class="status-message" id="bandwidth-error" role="alert"></p>
+        <button class="primary" type="submit" data-request-key="bandwidth">Lưu giới hạn</button>
+      </form>
+    </dialog>
   </body>
 </html>

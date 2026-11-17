@@ -3,6 +3,7 @@ package vn.edu.p2p.client.service;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Future;
 import org.springframework.stereotype.Service;
 
 /** Applies durable tracker tombstones to this peer's managed copies. */
@@ -40,7 +41,12 @@ public class PeerDeletionService {
                     if (!id.equals(job.fileId)) continue;
                     job.status = "PAUSED";
                     var workers = context.downloadPools.get(job.id);
-                    if (workers != null) workers.shutdownNow();
+                    if (workers != null) {
+                        // shutdownNow drains pending tasks without completing their Futures.
+                        // Cancel them so the coordinator can release its slot for the next file.
+                        for (Runnable pending : workers.shutdownNow())
+                            if (pending instanceof Future<?> future) future.cancel(false);
+                    }
                 }
                 context.jobs.deleteByFileId(id);
                 context.library.deleteByFileId(id);

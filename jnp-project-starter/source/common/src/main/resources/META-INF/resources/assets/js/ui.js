@@ -27,6 +27,7 @@ export const UI = {
     OFFLINE: 'Ngoại tuyến',
     DOWNLOADING: 'Đang tải',
     WAITING: 'Đang tìm nguồn',
+    QUEUED: 'Đang xếp hàng',
     PAUSED: 'Tạm dừng',
     COMPLETED: 'Hoàn tất',
     ERROR: 'Lỗi',

@@ -1,6 +1,7 @@
 import { api } from '/assets/js/http.js';
 
 export const peerApi = {
+  bandwidth: (body) => api('/api/settings/bandwidth', { method: 'PATCH', body }),
   status: () => api('/api/status'),
   catalog: (query, signal) => api('/api/catalog?q=' + encodeURIComponent(query), { signal }),
   register: (body) => api('/api/auth/register', { method: 'POST', body }),
@@ -10,6 +11,8 @@ export const peerApi = {
   download: (id) => api('/api/downloads', { method: 'POST', body: { fileId: id } }),
   downloadAction: (id, action) =>
     api(`/api/downloads/${id}/${action}`, { method: 'POST', body: {} }),
+  downloadPriority: (id, priority) =>
+    api(`/api/downloads/${id}/priority`, { method: 'PATCH', body: { priority } }),
   sharing: (id, enabled) =>
     api(`/api/library/${id}/sharing`, { method: 'PATCH', body: { enabled } }),
   scanConsent: (id, enabled) =>

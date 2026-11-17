@@ -68,7 +68,9 @@ class PeerDeletionServiceTest {
                             }
                         });
                 assertTrue(started.await(2, TimeUnit.SECONDS));
+                var pending = workers.submit(() -> fail("Deleted chunks must not be downloaded"));
                 new PeerDeletionService(context).apply(List.of(manifest.id()));
+                assertTrue(pending.isCancelled());
                 assertTrue(workers.isShutdown());
                 assertTrue(workers.awaitTermination(2, TimeUnit.SECONDS));
                 assertNull(jobs.findById(job.id));

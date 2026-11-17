@@ -27,6 +27,10 @@ public class PeerLabService {
                     rx = ((Number) context.tcpClient.metrics().get("receivedBytes")).longValue(),
                     tx = context.tcpServer.sentBytes();
             double seconds = Math.max(0.001, (now - context.sampleAt) / 1_000_000_000.0);
+            long readBytes = context.tcpClient.readBytes();
+            context.uploadBytesPerSecond = (long) ((tx - context.sampleTx) / seconds);
+            context.downloadBytesPerSecond = (long) ((readBytes - context.sampleReadBytes) / seconds);
+            context.sampleReadBytes = readBytes;
             context.sourceReceived.forEach(
                     (id, counter) -> {
                         long total = counter.get(),
@@ -85,7 +89,8 @@ public class PeerLabService {
         context.peerSessionService.validId(fileId);
         context.peerSessionService.ready();
         synchronized (context.storage.monitor()) {
-            if (!context.running.isEmpty() || !context.benchmarking.compareAndSet(false, true))
+            if (!context.running.isEmpty() || !context.jobs.findQueued().isEmpty()
+                    || !context.benchmarking.compareAndSet(false, true))
                 throw new IllegalArgumentException(
                         "Chỉ đo một lần và cần tạm dừng các phiên tải trước.");
         }

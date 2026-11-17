@@ -22,6 +22,7 @@ public final class TcpChunkServer implements AutoCloseable {
             sentBytes = new AtomicLong();
     private final ChunkProvider provider;
     private final int delay;
+    private final BandwidthLimiter bandwidth;
     private volatile boolean closing;
     private volatile FaultState fault = new FaultState("NORMAL", 0, 0);
     private final AtomicLong injected = new AtomicLong();
@@ -50,7 +51,13 @@ public final class TcpChunkServer implements AutoCloseable {
     }
 
     public TcpChunkServer(int port, int delay, ChunkProvider provider) throws IOException {
+        this(port, delay, provider, new BandwidthLimiter());
+    }
+
+    public TcpChunkServer(int port, int delay, ChunkProvider provider, BandwidthLimiter bandwidth)
+            throws IOException {
         this.provider = provider;
+        this.bandwidth = bandwidth;
         this.delay = Math.max(0, Math.min(5000, delay));
         listener = new ServerSocket();
         listener.setReuseAddress(true);
@@ -112,9 +119,16 @@ public final class TcpChunkServer implements AutoCloseable {
             }
             output.writeByte(0);
             output.writeInt(bytes.length);
-            output.write(bytes);
             output.flush();
-            sentBytes.addAndGet(bytes.length);
+            int offset = 0;
+            while (offset < bytes.length) {
+                int grant =
+                        bandwidth.acquire(bytes.length - offset, () -> closing || socket.isClosed());
+                output.write(bytes, offset, grant);
+                sentBytes.addAndGet(grant);
+                offset += grant;
+            }
+            output.flush();
         } catch (IOException ignored) {
             // A receiver may cancel a connection when pausing or shutting down.
         } finally {
@@ -168,6 +182,7 @@ public final class TcpChunkServer implements AutoCloseable {
     @Override
     public void close() throws IOException {
         closing = true;
+        bandwidth.close();
         listener.close();
         sockets.forEach(this::closeSocket);
         acceptor.shutdownNow();

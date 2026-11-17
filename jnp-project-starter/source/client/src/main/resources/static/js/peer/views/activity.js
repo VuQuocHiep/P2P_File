@@ -1,4 +1,5 @@
 import { UI, esc } from '/assets/js/ui.js';
+import { bandwidthPanel } from './bandwidth.js';
 
 export function activity(state) {
   return /* HTML */ `<section class="panel">
@@ -32,6 +33,7 @@ export function activity(state) {
         lên trình duyệt mỗi giây.
       </p>
     </section>
+    ${bandwidthPanel(state.network.bandwidth)}
     <div class="two-col">
       <section class="panel">
         <div class="panel-head">

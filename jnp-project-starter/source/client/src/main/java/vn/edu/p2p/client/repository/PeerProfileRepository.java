@@ -28,6 +28,19 @@ public class PeerProfileRepository {
         return storage.state().peerId;
     }
 
+    public long getUploadLimitKiB() {
+        return storage.state().uploadLimitKiB;
+    }
+
+    public long getDownloadLimitKiB() {
+        return storage.state().downloadLimitKiB;
+    }
+
+    public void updateBandwidth(long uploadLimitKiB, long downloadLimitKiB) {
+        storage.state().uploadLimitKiB = uploadLimitKiB;
+        storage.state().downloadLimitKiB = downloadLimitKiB;
+    }
+
     public void update(String owner, String name, String host) {
         storage.state().owner = owner;
         storage.state().name = name;

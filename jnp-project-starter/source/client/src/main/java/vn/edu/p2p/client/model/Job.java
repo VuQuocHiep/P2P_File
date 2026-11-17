@@ -5,6 +5,8 @@ import java.util.*;
 public class Job {
     public String id, fileId, status = "PAUSED", error = "";
     public long created, downloaded, finished;
+    public DownloadPriority priority = DownloadPriority.NORMAL;
+    public long queueOrder;
     public Map<String, Long> sourceBytes = new LinkedHashMap<>();
     public Map<Integer, ChunkSource> chunkSources = new TreeMap<>();
 }

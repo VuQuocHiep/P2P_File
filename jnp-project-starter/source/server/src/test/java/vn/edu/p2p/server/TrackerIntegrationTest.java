@@ -264,6 +264,13 @@ class TrackerIntegrationTest {
                         "/tickets/authorize",
                         new CheckTicket(ticket.path("ticket").asText(), peerId, id));
         assertEquals(json.readTree("{\"allowed\":true}"), json.readTree(allowed.body()));
+        var queued = send(http, "POST", "/transfers", new Progress("contract", peerId, id, "QUEUED", 0));
+        assertEquals(200, queued.statusCode());
+        assertEquals(json.readTree("{\"ok\":true}"), json.readTree(queued.body()));
+        assertTrue(adminService.dashboard(admin).transfers().stream()
+                .anyMatch(t -> t.id().equals("contract") && t.status().equals("QUEUED")));
+        assertEquals(400, send(http, "POST", "/transfers",
+                new Progress("contract", peerId, id, "UNKNOWN", 0)).statusCode());
         var progress =
                 send(
                         http,

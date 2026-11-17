@@ -18,14 +18,14 @@ export class Requests {
   }
 
   restore(root = document) {
-    for (const button of root.querySelectorAll('button[data-request-disabled]')) {
+    for (const button of root.querySelectorAll('[data-request-disabled]')) {
       button.disabled = button.dataset.requestDisabled === 'true';
       delete button.dataset.requestDisabled;
     }
   }
 
   sync(root = document) {
-    for (const button of root.querySelectorAll('button[data-request-key]')) {
+    for (const button of root.querySelectorAll('[data-request-key]')) {
       if (this.pending.has(button.dataset.requestKey)) {
         if (!button.hasAttribute('data-request-disabled')) {
           button.dataset.requestDisabled = String(button.disabled);

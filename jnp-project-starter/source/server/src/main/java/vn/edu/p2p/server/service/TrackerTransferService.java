@@ -29,7 +29,7 @@ public class TrackerTransferService {
                         input.id() != null
                                 && input.id().matches("[a-zA-Z0-9-]{1,64}")
                                 && f != null
-                                && Set.of("DOWNLOADING", "WAITING", "PAUSED", "COMPLETED", "ERROR")
+                                && Set.of("QUEUED", "DOWNLOADING", "WAITING", "PAUSED", "COMPLETED", "ERROR")
                                         .contains(input.status())
                                 && input.bytes() >= 0
                                 && input.bytes() <= f.manifest.size(),

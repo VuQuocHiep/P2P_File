@@ -118,6 +118,8 @@ class CheckpointTest {
                         "owner",
                         "name",
                         "host",
+                        "uploadLimitKiB",
+                        "downloadLimitKiB",
                         "library",
                         "jobs",
                         "events",
