@@ -1,5 +1,5 @@
 import { UI, esc, bytes, time } from '/assets/js/ui.js';
-import { malwareCell, scanAllowsApproval } from '../malware.js';
+import { malwareCell, scanAllowsApproval } from './malware.js';
 
 export function controls(kind, id, status, admin = false, allowApproval = true) {
   if (admin) return '<span class="muted">Quản trị viên</span>';

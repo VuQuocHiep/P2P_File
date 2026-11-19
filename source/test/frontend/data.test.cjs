@@ -31,8 +31,8 @@ function documentStub() {
 
 async function peerFixture(client) {
   const load = createModuleLoader({ document: documentStub() });
-  const { createPeerState } = await load(peer + 'state.js');
-  const { createPeerData } = await load(peer + 'data.js');
+  const { createPeerState } = await load(peer + 'store/state.js');
+  const { createPeerData } = await load(peer + 'store/data.js');
   const { UI } = await load(common + 'ui.js');
   const notices = [];
   UI.toast = (message) => notices.push(message);
@@ -182,8 +182,8 @@ test('a completed download request after logout cannot navigate or refresh the o
 
 test('admin ignores an obsolete dashboard error after a live snapshot has arrived', async () => {
   const load = createModuleLoader({ document: documentStub() });
-  const { createAdminState } = await load(admin + 'state.js');
-  const { createAdminData } = await load(admin + 'data.js');
+  const { createAdminState } = await load(admin + 'store/state.js');
+  const { createAdminData } = await load(admin + 'store/data.js');
   const model = createAdminState();
   model.signedIn = true;
   const pending = deferred();
@@ -206,8 +206,8 @@ test('admin ignores an obsolete dashboard error after a live snapshot has arrive
 
 test('admin dashboard response after logout cannot replace data from the next session', async () => {
   const load = createModuleLoader({ document: documentStub() });
-  const { createAdminState } = await load(admin + 'state.js');
-  const { createAdminData } = await load(admin + 'data.js');
+  const { createAdminState } = await load(admin + 'store/state.js');
+  const { createAdminData } = await load(admin + 'store/data.js');
   const model = createAdminState();
   model.signedIn = true;
   const pending = deferred();

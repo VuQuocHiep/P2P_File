@@ -1,5 +1,5 @@
 import { UI } from '/assets/js/ui.js';
-import { adminApi } from '../api.js';
+import { adminApi } from '../api/index.js';
 
 export function createFileActions({ model, data, requests, render, client = adminApi }) {
   async function moderate(kind, id, status) {

@@ -4,7 +4,7 @@ const { createModuleLoader } = require('../../../../test/frontend/modules.cjs');
 
 test('file deletion button is immediately after pending approval and absent from account controls', async () => {
   const load = createModuleLoader();
-  const { controls } = await load('server/src/main/resources/static/js/admin/views/tables.js');
+  const { controls } = await load('server/src/main/resources/static/js/admin/components/tables.js');
   const html = controls('files', 'hash', 'APPROVED');
   assert.ok(html.indexOf('Chờ duyệt') < html.indexOf('Xóa file'));
   assert.ok(html.includes('data-action="delete-file"'));

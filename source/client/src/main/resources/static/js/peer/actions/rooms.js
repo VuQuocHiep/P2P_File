@@ -107,8 +107,8 @@ export function createRoomActions({ model, data, requests, client = peerApi }) {
     if (
       !window.confirm(
         'Xoá phòng "' +
-          (name || roomId) +
-          '"? Toàn bộ file của phòng sẽ bị xoá khỏi mạng và các peer sẽ dọn bản lưu.',
+        (name || roomId) +
+        '"? Toàn bộ file của phòng sẽ bị xoá khỏi mạng và các peer sẽ dọn bản lưu.',
       )
     )
       return;

@@ -1,11 +1,11 @@
 import { $ } from '/assets/js/dom.js';
 import { UI, initializeUI } from '/assets/js/ui.js';
 import { Requests } from '/assets/js/requests.js';
-import { createAdminState } from './state.js';
-import { createAdminRenderer } from './views/page.js';
-import { createAdminData } from './data.js';
-import { createAdminChannel } from './realtime.js';
-import { createAdminAuth } from './auth.js';
+import { createAdminState } from './store/state.js';
+import { createAdminRenderer } from './layout/page.js';
+import { createAdminData } from './store/data.js';
+import { createAdminChannel } from './utils/realtime.js';
+import { createAdminAuth } from './utils/auth.js';
 import { createFileActions } from './actions/files.js';
 
 initializeUI();

@@ -141,7 +141,7 @@ test('priority transport uses PATCH and the existing authenticated API helper', 
       };
     },
   });
-  const { peerApi } = await load(peer + 'api.js');
+  const { peerApi } = await load(peer + 'api/index.js');
   await peerApi.downloadPriority('job-1', 'LOW');
   assert.equal(calls[0].url, '/api/downloads/job-1/priority');
   assert.equal(calls[0].method, 'PATCH');

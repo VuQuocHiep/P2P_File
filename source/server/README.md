@@ -1,31 +1,67 @@
-# PeerMesh Server / Tracker
+# PeerMesh Server (Tracker)
 
-Java 17 + Spring Boot 3.5.16 + MySQL 8. Quản lý tài khoản, duyệt peer / file, tìm nguồn, cấp vé tải, dashboard và nhật ký.
+Module máy chủ điều phối trung tâm của hệ thống PeerMesh. Quản lý toàn bộ định danh, quyền hạn, metadata tệp tin và điều phối kết nối giữa các peer. Server chỉ lưu trữ metadata, không lưu hay truyền nội dung file.
 
-Hướng dẫn đầy đủ về build, cấu hình, chạy, API, giao thức và demo nằm ở [README chính](../../README.md).
+---
 
-Từ thư mục repository:
+## 🛠️ Công nghệ cốt lõi
+
+* **Runtime & Framework:** Java 17, Spring Boot 3.5.16
+* **Cơ sở dữ liệu:** MySQL 8 qua Spring Data JPA / Hibernate
+* **Giao tiếp thời gian thực:** Spring WebSocket (RFC 6455)
+* **Bảo mật:** BCrypt (mật khẩu), Token / Session 12 giờ, Tích hợp VirusTotal API
+
+---
+
+## ⚡ Chức năng chính
+
+* **Quản trị người dùng & thiết bị:** Phê duyệt / khóa tài khoản, thiết bị peer tham gia mạng.
+* **Kiểm duyệt danh mục file:** Quản lý metadata, mã băm SHA-256 từng chunk và toàn file.
+* **Cấp vé tải an toàn (Ticket):** Sinh vé tải có thời hạn $60\text{s}$ gắn với từng nguồn; seeder đối soát vé trước khi truyền chunk.
+* **Quản lý phòng chia sẻ (Shared Rooms):** Hỗ trợ tạo nhóm chia sẻ kín kèm mã phòng và mật khẩu bảo vệ.
+* **Quét mã độc (VirusTotal):** Tra cứu tự động mã băm SHA-256 và nhận file mẫu ($\le 32\text{ MiB}$) do seeder gửi lên khi admin yêu cầu.
+* **Giám sát mạng & Heartbeat:** Nhận tín hiệu sống của peer mỗi $5\text{s}$, tự động đánh dấu offline sau $20\text{s}$ không nhận được heartbeat.
+* **Đồng bộ lệnh xóa toàn mạng:** Thu hồi vé tải và lưu vết xóa (tombstone) bền vững để các peer tự dọn dẹp file.
+
+---
+
+## 🚀 Khởi động nhanh
+
+Từ thư mục gốc dự án:
 
 ```powershell
-mvn -f source/pom.xml package
+# Thiết lập mật khẩu quản trị và khởi động tracker (cổng 8080)
 $env:ADMIN_PASSWORD = 'ThayBangMatKhauRieng!2026'
 powershell -ExecutionPolicy Bypass -File source/run.ps1 -Role server
 ```
 
-Mở http://127.0.0.1:8080. Tài khoản bootstrap mặc định admin, mật khẩu cấu hình lần đầu. Tracker lưu metadata, không lưu nội dung file.
+* **Giao diện Quản trị:** Truy cập [http://127.0.0.1:8080](http://127.0.0.1:8080) (tài khoản: `admin`).
+* **Cấu hình MySQL:** Mặc định kết nối `localhost:3306/peermesh` (user: `root`). Có thể tùy biến qua biến môi trường: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`.
+* **Khóa quét virus (tùy chọn):** Thiết lập `$env:VIRUSTOTAL_API_KEY = 'your_api_key'` trước khi chạy server.
 
-Mã nguồn: src/main/java/vn/edu/p2p/server/; web: src/main/resources/static/; cấu hình: application.properties; kiểm thử: src/test/java/.
+---
 
-Package Java: `controller/`, `service/`, `repository/`, `model/`, `entity/`, `dto/request/`, `dto/response/`, `mapper/`, `config/`, `websocket/`, `exception/`.
+## 🧩 Cấu trúc mã nguồn
 
-Giao diện nhận snapshot trực tiếp qua `/ws/admin`; HTTP polling chỉ dùng dự phòng khi WebSocket mất kết nối.
+```text
+source/server/
+├── src/main/java/vn/edu/p2p/server/
+│   ├── controller/      # REST API endpoints (quản trị, peer, phòng, file)
+│   ├── service/         # Nghiệp vụ điều phối, duyệt tài khoản/file, cấp vé, quét virus
+│   ├── repository/      # Spring Data JPA repositories thao tác MySQL 8
+│   ├── entity/          # JPA entities (Account, Peer, File, Room, Transfer, Audit...)
+│   ├── dto/             # Đối tượng truyền nhận dữ liệu (request / response)
+│   ├── websocket/       # Push snapshot trạng thái mạng qua /ws/admin (1s/lần)
+│   └── migration/       # Tự động đồng bộ và chuyển đổi dữ liệu từ snapshot cũ
+└── src/main/resources/
+    ├── application.properties
+    ├── schema-mysql.sql # Kịch bản khởi tạo database MySQL
+    └── static/          # Giao diện Admin Console (HTML5, CSS, Vanilla JS)
+```
 
-Controller gọi trực tiếp service chức năng được Spring quản lý bằng `@Service`, nhận DTO trong `dto/request/` và trả DTO trong `dto/response/`. Các tên trường JSON và endpoint được giữ nguyên.
+---
 
-Các repository nghiệp vụ `AccountRepository`, `PeerRepository`, `FileRepository`, `TransferRepository`, `AuditRepository` kế thừa `JpaRepository<Entity, Id>` và không cần `repository/impl/`. Service gọi repository trong transaction, giữ khóa tracker chung đến khi commit/rollback xong. Mapper chuyển entity thành response DTO, giữ tên trường JSON của API.
+## 🔗 Liên kết liên quan
 
-`migration/LegacyRegistryMigration` nhập snapshot JSON cũ sang các bảng nghiệp vụ trong một transaction. Giữ nguyên dòng `registry.id=1` làm bản lưu dữ liệu cũ; `tracker_migrations` đánh dấu hoàn thành để các thay đổi mới không bị ghi đè khi restart. Manifest và danh sách chunk của từng file dùng converter JSON. `spring.jpa.hibernate.ddl-auto=update` giữ dữ liệu hiện có và tạo các bảng mới.
-
-Xem [hướng dẫn cấu trúc dự án](../../ARCHITECTURE.md). Giao diện được chia theo trạng thái, xác thực, API, realtime, view và sự kiện trong `src/main/resources/static/js/`; `app.js` là file khởi động được nạp cuối.
-
-`DELETE /api/admin/files/{id}` chỉ cho ADMIN: xóa file, báo cáo liên quan và thu hồi vé, đồng thời lưu `FileDeletionEntity`. `GET /api/files/deletions` cho phiên đăng nhập còn hạn nhận các ID cần dọn, kể cả phiên bị khóa để vẫn xóa được các bản lưu. Dấu xóa được giữ qua restart để peer offline không làm file xuất hiện lại.
+* Hướng dẫn tổng thể dự án: [README.md](../../README.md)
+* Thiết kế luồng xử lý chi tiết: [ARCHITECTURE.md](../../ARCHITECTURE.md)

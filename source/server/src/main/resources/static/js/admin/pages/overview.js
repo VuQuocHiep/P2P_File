@@ -1,5 +1,5 @@
 import { UI, esc, bytes } from '/assets/js/ui.js';
-import { peerTable, roomTable, auditRows } from './tables.js';
+import { peerTable, roomTable, auditRows } from '../components/tables.js';
 
 export function overview(data) {
   const pending = [
