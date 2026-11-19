@@ -17,6 +17,7 @@ import vn.edu.p2p.server.mapper.AuditMapper;
 public class TrackerAdminService {
     private final TrackerContext context;
     private final TrackerAccess access;
+    private final TrackerRoomService roomService;
     private final AccountMapper accountMapper;
     private final PeerMapper peerMapper;
     private final FileMapper fileMapper;
@@ -26,6 +27,7 @@ public class TrackerAdminService {
     public TrackerAdminService(
             TrackerContext context,
             TrackerAccess access,
+            TrackerRoomService roomService,
             AccountMapper accountMapper,
             PeerMapper peerMapper,
             FileMapper fileMapper,
@@ -33,6 +35,7 @@ public class TrackerAdminService {
             AuditMapper auditMapper) {
         this.context = context;
         this.access = access;
+        this.roomService = roomService;
         this.accountMapper = accountMapper;
         this.peerMapper = peerMapper;
         this.fileMapper = fileMapper;
@@ -55,6 +58,7 @@ public class TrackerAdminService {
                         context.files.findAllByOrderByPositionAsc().stream()
                                 .map(f -> fileMapper.toResponse(f, access.onlineSources(f)))
                                 .toList(),
+                        roomService.adminRooms(token),
                         context.transfers.findAllByOrderByPositionAsc().stream()
                                 .map(transferMapper::toResponse)
                                 .toList(),

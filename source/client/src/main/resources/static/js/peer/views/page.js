@@ -58,7 +58,14 @@ export function createPeerRenderer(model) {
       {
         explore: () => explore(state, catalog, query),
         rooms: () =>
-          rooms(state, model.rooms, model.roomRequests, model.roomFiles, model.roomMembers),
+          rooms(
+            state,
+            model.rooms,
+            model.roomRequests,
+            model.roomFiles,
+            model.roomMembers,
+            model.roomId,
+          ),
         downloads: () => downloads(state),
         library: () => library(state),
         activity: () => activity(state),

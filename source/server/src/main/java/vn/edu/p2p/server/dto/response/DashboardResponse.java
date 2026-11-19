@@ -8,5 +8,6 @@ public record DashboardResponse(
         List<UserResponse> accounts,
         List<PeerResponse> peers,
         List<FileResponse> files,
+        List<RoomResponse> rooms,
         List<Transfer> transfers,
         List<Audit> audit) {}

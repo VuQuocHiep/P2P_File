@@ -14,7 +14,7 @@ import subprocess
 import urllib.error
 import uuid
 
-from e2e import Api, SOURCE, ROOT, wait_for
+from e2e import Api, SOURCE, ROOT, tracker_database, tracker_datasource, wait_for
 
 
 def main():
@@ -32,6 +32,7 @@ def main():
     processes, logs = {}, []
     admin, seed, receiver = [Api(args.port + i) for i in range(3)]
     password = 'queue-test-password-2026'
+    tracker_db = tracker_database()
 
     def start(name, module, *config):
         log = open(run / (name + '.log'), 'ab')
@@ -79,8 +80,7 @@ def main():
         receiver.call(f'/api/downloads/{job_id}/priority', 'PATCH', {'priority': priority})
 
     try:
-        start('tracker', 'server', f'--server.port={args.port}',
-              f'--spring.datasource.url=jdbc:h2:file:{run / "tracker" / "database"}',
+        start('tracker', 'server', f'--server.port={args.port}', *tracker_datasource(tracker_db),
               '--peermesh.admin.username=admin', f'--peermesh.admin.password={password}')
         wait_for(lambda: admin.call('/api/health'), 'tracker startup')
         admin.call('/api/auth/login', 'POST', {'username': 'admin', 'password': password})

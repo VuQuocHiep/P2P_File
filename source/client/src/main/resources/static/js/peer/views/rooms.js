@@ -6,7 +6,37 @@ const ID_PATTERN = '[a-zA-Z0-9][a-zA-Z0-9_-]{2,23}';
 function roleBadge(room) {
   if (room.mine) return '<span class="badge">Chủ phòng</span>';
   if (room.membership === 'APPROVED') return '<span class="badge">Thành viên</span>';
-  return '<span class="badge">Chờ duyệt</span>';
+  if (room.membership === 'PENDING') return '<span class="badge PENDING">Chờ duyệt</span>';
+  if (room.membership === 'REJECTED') return '<span class="badge">Bị từ chối</span>';
+  return '<span class="badge">Chưa tham gia</span>';
+}
+
+function statusBadge(room) {
+  if (room.membership === 'PENDING') return UI.badge('PENDING');
+  if (room.membership === 'REJECTED') return '<span class="badge BLOCKED">Bị từ chối</span>';
+  return '<span class="badge">Chưa tham gia</span>';
+}
+
+function openButton(room) {
+  return /* HTML */ `<button
+    class="small ghost"
+    data-action="room-open"
+    data-room="${esc(room.id)}"
+  >
+    Mở phòng
+  </button>`;
+}
+
+function joinButton(room) {
+  return /* HTML */ `<button
+    class="small primary"
+    data-action="room-join-card"
+    data-request-key="room-join:${esc(room.id)}"
+    data-room="${esc(room.id)}"
+    data-password="${room.hasPassword}"
+  >
+    Xin vào phòng
+  </button>`;
 }
 
 function requestRows(roomId, requests = []) {
@@ -151,22 +181,26 @@ function ownerControls(room) {
   </div>`;
 }
 
-function roomCard(room, state, requestsByRoom, filesByRoom, membersByRoom) {
-  const files = filesByRoom[room.id] || [];
-  const pending = requestsByRoom[room.id] || [];
-  const members = membersByRoom[room.id] || [];
+function roomSummary(room) {
+  return /* HTML */ `<p class="section-note">
+    Mã phòng <span class="mono">${esc(room.id)}</span> · Chủ phòng
+    <span class="mono">${esc(room.owner)}</span> · ${room.members} thành viên · ${room.files} file${room
+      .hasPassword
+      ? ' · Có mật khẩu'
+      : ''}
+  </p>`;
+}
+
+function roomCard(room, state, requests, files, members) {
   const member = room.mine || room.membership === 'APPROVED';
-  return /* HTML */ `<section class="panel">
+  return /* HTML */ `<section class="panel" data-key="room-${esc(room.id)}">
     <div class="dialog-top">
       <h2>${esc(room.name)}</h2>
       ${roleBadge(room)}
     </div>
-    <p class="section-note">
-      Mã phòng <span class="mono">${esc(room.id)}</span> · Chủ phòng
-      <span class="mono">${esc(room.owner)}</span> · ${room.members} thành viên · ${room.files}
-      file${room.hasPassword ? ' · Có mật khẩu' : ''}
-    </p>
-    ${room.mine ? ownerControls(room) : ''} ${room.mine ? requestRows(room.id, pending) : ''}
+    ${roomSummary(room)}
+    <div class="actions">${openButton(room)}</div>
+    ${room.mine ? ownerControls(room) : ''} ${room.mine ? requestRows(room.id, requests) : ''}
     ${room.mine ? memberRows(room.id, members) : ''}
     ${member
       ? fileRows(room.id, files)
@@ -175,7 +209,68 @@ function roomCard(room, state, requestsByRoom, filesByRoom, membersByRoom) {
   </section>`;
 }
 
-export function rooms(state, list = [], requestsByRoom = {}, filesByRoom = {}, membersByRoom = {}) {
+function roomDetail(room, state, requests, files, members) {
+  const back = /* HTML */ `<div class="actions">
+    <button class="small ghost" data-action="room-back">← Danh sách phòng</button>
+  </div>`;
+  const member = room.mine || room.membership === 'APPROVED';
+  if (!member)
+    return (
+      back +
+      /* HTML */ `<section class="panel" id="room-detail">
+        <div class="dialog-top">
+          <h2>${esc(room.name)}</h2>
+          ${roleBadge(room)}
+        </div>
+        ${roomSummary(room)}
+        <p class="section-note">
+          ${room.membership === 'PENDING'
+            ? 'Yêu cầu vào phòng đang chờ chủ phòng duyệt.'
+            : 'Bạn chưa phải thành viên của phòng này.'}
+        </p>
+        <div class="actions">
+          ${room.membership === 'PENDING' ? '' : joinButton(room)}
+        </div>
+      </section>`
+    );
+  return back + /* HTML */ `<div id="room-detail">${roomCard(room, state, requests, files, members)}</div>`;
+}
+
+function openRooms(others) {
+  if (!others.length)
+    return UI.empty('Chưa có phòng nào khác trong mạng. Tạo phòng mới hoặc dùng mã phòng để vào.');
+  return /* HTML */ `<section class="panel">
+    <div class="panel-head">
+      <h2>Phòng đang mở</h2>
+      <span class="badge">${others.length} phòng</span>
+    </div>
+    ${UI.table(
+      ['Phòng', 'Chủ phòng', 'Thành viên', 'File', 'Trạng thái', 'Thao tác'],
+      others.map(
+        (room) =>
+          /* HTML */ `<tr data-key="open-${esc(room.id)}">
+            <td>
+              <strong>${esc(room.name)}</strong
+              ><small class="mono"
+                >${esc(room.id)}${room.hasPassword ? ' · có mật khẩu' : ''}</small
+              >
+            </td>
+            <td class="mono">${esc(room.owner)}</td>
+            <td>${room.members}</td>
+            <td>${room.files}</td>
+            <td>${statusBadge(room)}</td>
+            <td>
+              <div class="actions">
+                ${openButton(room)}${room.membership === 'PENDING' ? '' : joinButton(room)}
+              </div>
+            </td>
+          </tr>`,
+      ),
+    )}
+  </section>`;
+}
+
+export function rooms(state, list = [], requestsByRoom = {}, filesByRoom = {}, membersByRoom = {}, selectedRoomId = '') {
   if (!ready(state))
     return UI.empty('Cần tài khoản và thiết bị được duyệt trước khi dùng phòng chia sẻ.');
   const create = /* HTML */ `<section class="panel">
@@ -231,15 +326,34 @@ export function rooms(state, list = [], requestsByRoom = {}, filesByRoom = {}, m
       </button>
     </form>
   </section>`;
-  if (!list.length)
-    return (
-      create +
-      join +
-      UI.empty('Bạn chưa ở trong phòng nào. Tạo phòng mới hoặc dùng mã phòng để vào.')
+  const own = list.filter((room) => room.mine || room.membership === 'APPROVED');
+  const others = list.filter((room) => !(room.mine || room.membership === 'APPROVED'));
+  const selected = selectedRoomId ? list.find((room) => room.id === selectedRoomId) : null;
+  if (selected)
+    return roomDetail(
+      selected,
+      state,
+      requestsByRoom[selected.id] || [],
+      filesByRoom[selected.id] || [],
+      membersByRoom[selected.id] || [],
     );
   return (
     create +
     join +
-    list.map((room) => roomCard(room, state, requestsByRoom, filesByRoom, membersByRoom)).join('')
+    `<p class="eyebrow">PHÒNG CỦA BẠN</p>` +
+    (own.length
+      ? own
+          .map((room) =>
+            roomCard(
+              room,
+              state,
+              requestsByRoom[room.id] || [],
+              filesByRoom[room.id] || [],
+              membersByRoom[room.id] || [],
+            ),
+          )
+          .join('')
+      : UI.empty('Bạn chưa ở trong phòng nào. Tạo phòng mới hoặc xin vào một phòng đang mở.')) +
+    openRooms(others)
   );
 }

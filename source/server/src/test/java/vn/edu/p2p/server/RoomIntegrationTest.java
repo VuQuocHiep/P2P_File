@@ -16,12 +16,18 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
-            "spring.datasource.url=jdbc:h2:mem:room-tests;DB_CLOSE_DELAY=-1",
             "peermesh.admin.username=admin",
             "peermesh.admin.password=test-admin-secret-2026",
             "virustotal.worker-enabled=false"
         })
 class RoomIntegrationTest {
+    @org.springframework.test.context.DynamicPropertySource
+    static void database(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> TestDatabase.url("peermesh_test_room"));
+        registry.add("spring.datasource.username", TestDatabase::username);
+        registry.add("spring.datasource.password", TestDatabase::password);
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+    }
     private static final AtomicInteger PORTS = new AtomicInteger(19100);
 
     @Autowired TrackerAuthService authService;
@@ -152,7 +158,21 @@ class RoomIntegrationTest {
                 fileService.files(b, "public").stream()
                         .anyMatch(f -> f.manifest().id().equals(publicFile.id())));
         assertEquals(1, roomService.files(b, roomId).size());
-        assertTrue(roomService.rooms(c).isEmpty());
+        assertTrue(roomService.rooms(c).stream().anyMatch(r -> r.id().equals(secondRoom)));
+        var discovered =
+                roomService.rooms(c).stream()
+                        .filter(r -> r.id().equals(roomId))
+                        .findFirst()
+                        .orElseThrow();
+        assertNull(discovered.membership());
+        assertEquals(0, discovered.pendingRequests());
+        var adminRoom =
+                adminService.dashboard(admin).rooms().stream()
+                        .filter(r -> r.id().equals(roomId))
+                        .findFirst()
+                        .orElseThrow();
+        assertEquals(alice, adminRoom.owner());
+        assertEquals(2, adminRoom.members());
     }
 
     @Test
@@ -180,7 +200,13 @@ class RoomIntegrationTest {
         assertThrows(IllegalArgumentException.class, () -> roomService.removeMember(b, roomId, alice));
 
         roomService.removeMember(a, roomId, bob);
-        assertTrue(roomService.rooms(b).stream().noneMatch(r -> r.id().equals(roomId)));
+        assertEquals(
+                "REJECTED",
+                roomService.rooms(b).stream()
+                        .filter(r -> r.id().equals(roomId))
+                        .findFirst()
+                        .orElseThrow()
+                        .membership());
         assertThrows(ResponseStatusException.class, () -> roomService.files(b, roomId));
         assertEquals("PENDING", roomService.join(b, roomId, new RoomJoin(null)).membership());
 
@@ -210,7 +236,13 @@ class RoomIntegrationTest {
         assertEquals("PENDING", roomService.join(b, roomId, new RoomJoin(null)).membership());
 
         assertEquals("REJECTED", roomService.decide(a, roomId, bob, new RoomDecision("REJECTED")).status());
-        assertTrue(roomService.rooms(b).stream().noneMatch(r -> r.id().equals(roomId)));
+        assertEquals(
+                "REJECTED",
+                roomService.rooms(b).stream()
+                        .filter(r -> r.id().equals(roomId))
+                        .findFirst()
+                        .orElseThrow()
+                        .membership());
 
         assertEquals("PENDING", roomService.join(b, roomId, null).membership());
         roomService.decide(a, roomId, bob, new RoomDecision("APPROVED"));

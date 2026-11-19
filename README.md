@@ -20,7 +20,7 @@ Bài tập lớn Lập trình mạng. Java 17 + Spring Boot, giao diện web ti�
 
 ![Kiến trúc PeerMesh](./statics/peermesh-diagram.svg)
 
-- **Server / tracker:** xác thực, duyệt tài khoản / thiết bị / file, tìm nguồn, cấp vé tải, nhận báo cáo và lưu nhật ký trong MySQL (H2 dự phòng khi dùng profile `h2`).
+- **Server / tracker:** xác thực, duyệt tài khoản / thiết bị / file, tìm nguồn, cấp vé tải, nhận báo cáo và lưu nhật ký trong MySQL.
 - **Client / peer:** ứng dụng Java vừa tải vừa gửi các phần file qua TCP. Spring Boot cung cấp giao diện web cục bộ để người dùng điều khiển peer.
 - **Common:** định dạng manifest, giao thức TCP, CSS và tiện ích web dùng chung.
 
@@ -54,7 +54,7 @@ Web sử dụng WebSocket để nhận snapshot trực tiếp mỗi giây. Trìn
 | Điều phối | HTTP / JSON |
 | Cập nhật thời gian thực | Spring WebSocket / RFC 6455 |
 | Dữ liệu P2P | Java TCP Socket, giao thức PM01 |
-| Lưu trữ server | MySQL 8 + Spring Data JPA (H2 dự phòng), bảng riêng cho account, peer, file, transfer và audit |
+| Lưu trữ server | MySQL 8 + Spring Data JPA, bảng riêng cho account, peer, file, transfer và audit |
 | Lưu trữ peer | File content-addressed, chunk và checkpoint JSON |
 | Toàn vẹn / mật khẩu | SHA-256 / BCrypt |
 | Giao diện | HTML, CSS, JavaScript thuần, không cần CDN / Node.js |
@@ -173,7 +173,7 @@ Kết quả: `source/server/target/server-1.0.0.jar` và `source/client/target/c
 
 Mở **4 terminal**, đều ở thư mục repository.
 
-MySQL 8 phải chạy trước khi khởi động tracker, và database `peermesh` phải tồn tại — xem [Cơ sở dữ liệu MySQL](#cơ-sở-dữ-liệu-mysql). Muốn bỏ qua MySQL khi demo nhanh, thêm `-UseH2` vào lệnh tracker (dữ liệu nằm trong `source/data/server-PORT`).
+MySQL 8 phải chạy trước khi khởi động tracker, và database `peermesh` phải tồn tại — xem [Cơ sở dữ liệu MySQL](#cơ-sở-dữ-liệu-mysql). Tracker chỉ dùng MySQL; không còn chế độ chạy bằng database nhúng.
 
 ### Terminal 1 — tracker
 
@@ -189,11 +189,7 @@ $env:DB_PASSWORD = 'mat-khau-mysql-cua-ban'
 powershell -ExecutionPolicy Bypass -File source/run.ps1 -Role server
 ```
 
-Bỏ các biến `DB_*` nếu dùng giá trị mặc định (`localhost:3306/peermesh`, user `root`, mật khẩu rỗng). Chạy bằng H2 thay cho MySQL:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File source/run.ps1 -Role server -UseH2
-```
+Bỏ các biến `DB_*` nếu dùng giá trị mặc định (`localhost:3306/peermesh`, user `root`, mật khẩu rỗng).
 
 Mở [quản trị](http://127.0.0.1:8080), đăng nhập `admin` và mật khẩu vừa đặt. ADMIN chỉ được bootstrap khi registry chưa có quản trị viên. Đổi biến môi trường sau đó không thay mật khẩu đã lưu.
 
@@ -235,12 +231,14 @@ Nếu tải quá nhanh, dùng file lớn hơn hoặc tăng độ trễ demo. Gia
 
 Mỗi tài khoản đã được duyệt có thể tạo **phòng** để chia sẻ file trong một nhóm kín. Phòng có tên, mã phòng và mật khẩu tùy chọn; nội dung file vẫn truyền trực tiếp giữa các peer qua TCP, tracker chỉ giữ metadata và quyết định ai được tải.
 
-- **Tạo phòng:** tab **Phòng chia sẻ** → nhập tên, mã phòng (để trống thì tracker tự sinh 8 ký tự) và mật khẩu 6–64 ký tự nếu cần. Người tạo là chủ phòng và tự động là thành viên.
-- **Xin vào phòng:** nhập mã phòng và mật khẩu nếu có; yêu cầu ở trạng thái `PENDING`. Sai mật khẩu bị từ chối ngay, không tạo yêu cầu.
+- **Tạo phòng:** tab **Phòng chia sẻ** → nhập tên, mã phòng (để trống thì tracker tự sinh 8 ký tự) và mật khẩu 6–64 ký tự nếu cần. Người tạo là chủ phòng và tự động là thành viên; sau khi tạo, giao diện mở thẳng phòng đó với đầy đủ nút quản lý của chủ phòng.
+- **Danh sách phòng:** mọi tài khoản đã duyệt thấy hai nhóm — **Phòng của bạn** (do mình làm chủ hoặc đã được duyệt) và **Phòng đang mở** (mọi phòng `ACTIVE` khác, kèm chủ phòng, số thành viên, số file và trạng thái tham gia của bạn). Mã phòng, tên phòng và chủ phòng là thông tin công khai trong mạng; nội dung file thì không.
+- **Xin vào phòng:** bấm **Xin vào phòng** ngay trên danh sách (hỏi mật khẩu nếu phòng có khoá) hoặc nhập mã phòng ở form **Vào phòng**; yêu cầu ở trạng thái `PENDING`. Sai mật khẩu bị từ chối ngay, không tạo yêu cầu.
 - **Chủ phòng duyệt:** thẻ phòng hiện danh sách **Yêu cầu vào phòng** với nút **Duyệt** / **Từ chối**. Chỉ chủ phòng gọi được API duyệt; người bị từ chối có thể gửi lại yêu cầu.
 - **Quản lý phòng (chủ phòng):** đổi tên, đặt / đổi / bỏ mật khẩu, đuổi thành viên và xoá phòng. Đuổi thành viên thu hồi quyền tải ngay; xoá phòng xoá luôn file của phòng khỏi tracker và phát lệnh dọn bản lưu tới các peer.
 - **Chia sẻ file:** thành viên đã duyệt chọn một file đang bật chia sẻ trong **Thư viện** rồi bấm **Chia sẻ vào phòng**. File vẫn đi qua bước admin duyệt như danh mục công khai.
 - **Tải file:** file trong phòng hiện ở thẻ phòng kèm trạng thái và số nguồn; bấm **Tải về** như file công khai. Vé tải chỉ cấp cho thành viên đã duyệt.
+- **Quản trị:** admin có tab **Phòng chia sẻ** trong dashboard, thấy mọi phòng kèm chủ phòng, số thành viên, số yêu cầu chờ duyệt, số file, có mật khẩu hay không và thời điểm tạo.
 
 Quy tắc truy cập: file thuộc phòng **không** xuất hiện trong tìm kiếm công khai; `GET /api/files/{id}/sources` và `POST /api/tickets` đều kiểm tra lại tư cách thành viên, kể cả khi nguồn xác thực vé. Mỗi file chỉ thuộc một phòng, và chủ phòng không thể tự chuyển file sang phòng khác. Chủ phòng duyệt người, admin duyệt nội dung file.
 
@@ -299,7 +297,7 @@ Phía peer, khi thêm file, tích **Cho phép gửi file lên VirusTotal khi adm
 
 ### Luồng xử lý tự động
 
-1. Admin bấm **Quét file**. Server lưu yêu cầu trong MySQL (hoặc H2 khi dùng profile dự phòng) rồi trả về ngay, không chờ peer hay VirusTotal trong HTTP request này.
+1. Admin bấm **Quét file**. Server lưu yêu cầu trong MySQL rồi trả về ngay, không chờ peer hay VirusTotal trong HTTP request này.
 2. Worker tra báo cáo theo SHA-256. Nếu đã có kết quả thì hiển thị luôn, không cần gửi nội dung file.
 3. Nếu chưa có báo cáo, trạng thái chuyển thành **Đang chờ nguồn cho phép quét**. Nguồn offline, chưa đủ file hoặc chưa đồng ý thì yêu cầu tiếp tục chờ; không hiện trình chọn file ở máy admin.
 4. Peer nhận việc qua kết nối HTTP chủ động khi heartbeat, dùng worker riêng để không chặn heartbeat hoặc truyền P2P. Server chỉ cấp một lease có thời hạn cho một nguồn đủ điều kiện. Peer kiểm tra lại quyền cục bộ trước khi gửi bản file do ứng dụng quản lý.
@@ -379,19 +377,17 @@ Mỗi instance peer phải có thư mục dữ liệu riêng; khóa profile ngă
 | DB_NAME | peermesh | Tên database, phải tồn tại trước khi chạy |
 | DB_USERNAME | root | Tài khoản MySQL |
 | DB_PASSWORD | Rỗng | Mật khẩu MySQL, giữ ổn định giữa các lần chạy |
-| USE_H2 / -UseH2 | tắt | Dùng H2 file thay MySQL (profile `h2`) |
-| TRACKER_DATA | ./data/tracker | Thư mục dữ liệu H2 khi chạy JAR trực tiếp |
 | TRACKER_URL / --peer.tracker | http://127.0.0.1:8080 | Địa chỉ tracker |
 | PEER_WEB_PORT / --server.port | 8081 | Web cục bộ peer |
 | PEER_TCP_PORT / --peer.tcp-port | 9001 | TCP peer |
 | PEER_DATA / --peer.data | ./data/peer-8081 | Profile, phải riêng từng instance |
 | PEER_UPLOAD_DELAY_MS / --peer.upload-delay-ms | 0 | Độ trễ demo, 0–5000 ms / chunk |
 
-Script run.ps1 mặc định dùng `source/data/server-PORT` và `source/data/peer-PORT`; với MySQL, dữ liệu registry nằm trong MySQL chứ không ở `source/data/server-*`. Có thể chỉ định `-DataDir`. Khi chạy trực tiếp JAR, cấu hình mặc định theo bảng.
+Script run.ps1 mặc định dùng `source/data/peer-PORT` cho profile peer và `source/data/server-PORT` cho thư mục tạm của tracker; dữ liệu registry nằm trong MySQL chứ không ở `source/data/server-*`. Có thể chỉ định `-DataDir`. Khi chạy trực tiếp JAR, cấu hình mặc định theo bảng.
 
 ## Cơ sở dữ liệu MySQL
 
-Tracker dùng MySQL 8 (utf8mb4) qua Spring Data JPA; `spring.jpa.hibernate.ddl-auto=update` tự tạo / cập nhật bảng khi khởi động. H2 chỉ còn là phương án dự phòng cho demo nhanh hoặc khi máy không có MySQL.
+Tracker dùng MySQL 8 (utf8mb4) qua Spring Data JPA; `spring.jpa.hibernate.ddl-auto=update` tự tạo / cập nhật bảng khi khởi động.
 
 **Tạo database và bảng (một lần):**
 
@@ -401,18 +397,11 @@ mysql -u root -p < source/server/src/main/resources/schema-mysql.sql
 
 File [`schema-mysql.sql`](source/server/src/main/resources/schema-mysql.sql) tạo database `peermesh` và các bảng `tracker_accounts`, `tracker_peers`, `tracker_files` (có cột `room_id`), `tracker_transfers`, `tracker_audit`, `tracker_file_deletions`, `tracker_migrations`, `tracker_rooms`, `tracker_room_members` cùng bảng `registry`. Nếu chỉ tạo database rỗng, Hibernate vẫn tạo bảng khi tracker khởi động lần đầu.
 
-**Cấu hình:** các biến `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` trong bảng trên. Driver và dialect để Spring/Hibernate tự nhận theo URL, nên cùng một bản build chạy được cả MySQL và H2; chuỗi kết nối dùng `utf8mb4`, `serverTimezone=Asia/Ho_Chi_Minh` và `allowPublicKeyRetrieval=true` cho MySQL 8.
+**Cấu hình:** các biến `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` trong bảng trên. Chuỗi kết nối dùng `utf8mb4`, `serverTimezone=Asia/Ho_Chi_Minh` và `allowPublicKeyRetrieval=true` cho MySQL 8.
 
-**Chạy bằng H2 (không cần MySQL):**
+**Đổi database khi peer đã có profile:** `peerId` lưu trong `profile.json` chỉ có nghĩa với database đã cấp nó. Khi tracker dùng database khác hoặc bị tạo lại (ví dụ đổi `DB_NAME`, xóa schema `peermesh`), peer gửi id cũ và tracker trả `403 Peer không thuộc tài khoản hoặc chưa được duyệt.` Peer tự bỏ id cũ, đăng ký thiết bị mới nên chỉ cần quản trị viên duyệt peer mới; muốn giữ danh tính cũ thì dùng đúng database trước đó.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File source/run.ps1 -Role server -UseH2
-# hoặc đặt USE_H2=1, hoặc chạy JAR với --spring.profiles.active=h2
-```
-
-H2 lưu ở `source/data/server-PORT/database.mv.db` (script) hoặc `./data/tracker` khi chạy JAR trực tiếp. Không dùng chung một database H2 cho nhiều tiến trình tracker.
-
-**Kiểm thử:** JUnit chạy trên H2 in-memory qua [`application-test.properties`](source/server/src/test/resources/application-test.properties), không cần MySQL; danh sách biến và cổng vẫn giữ nguyên khi đổi backend.
+**Kiểm thử:** JUnit cũng chạy trên MySQL, mỗi lớp test dùng một database riêng và tự tạo khi kết nối (`peermesh_test_*`, có thể đổi bằng `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD` như trên). Cần MySQL đang chạy trước khi gọi `mvn test`. Các script e2e trong `source/**/src/test/resources` cũng tạo database `peermesh_e2e_*` cho mỗi lần chạy; xóa chúng bằng `DROP DATABASE` khi không cần nữa.
 
 ## Giao thức / API
 
@@ -542,6 +531,8 @@ mvn -f source/pom.xml package
 python source/client/src/test/resources/e2e.py
 ```
 
+`mvn package` chạy kiểm thử server ngay trên MySQL: cần MySQL đang chạy và đặt `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD` nếu tài khoản root có mật khẩu. Mỗi lớp test tạo database riêng `peermesh_test_*`, các script e2e tạo database `peermesh_e2e_*`; có thể xóa chúng bằng `DROP DATABASE` sau khi chạy.
+
 10 kiểm thử JUnit đã chạy thành công: hash / ranh giới chunk, frame thiếu / quá lớn, phê duyệt / quyền ADMIN / vé tải / thu hồi quyền, header bảo vệ mutation, checkpoint, bốn client TCP đồng thời, từ chối chunk sai hash, giới hạn hàng đợi, WebSocket push / Origin / đăng xuất.
 
 E2E sử dụng HTTP 18080–18083, TCP 19001–19003, dữ liệu riêng ở `source/target/e2e-*/`. Kịch bản: tải file 32 MiB từ hai nguồn → tạm dừng → tắt cưỡng bức máy nhận → cố ý làm hỏng một phần → restart → tiếp tục → tắt một nguồn giữa chừng → kiểm tra SHA-256 → kiểm tra chia sẻ lại, báo cáo và registry sau restart tracker. Kịch bản cũng thực hiện HTTP Upgrade / xác thực cookie và đọc tiến độ qua WebSocket thật. Các tiến trình do script mở được dừng khi kết thúc.
@@ -570,7 +561,6 @@ E2E sử dụng HTTP 18080–18083, TCP 19001–19003, dữ liệu riêng ở `s
 - [Java 17 MessageDigest API](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/MessageDigest.html)
 - [Spring Framework 6.2 — WebSocket server](https://docs.spring.io/spring-framework/reference/6.2/web/websocket/server.html)
 - [MySQL 8 Reference Manual](https://dev.mysql.com/doc/refman/8.0/en/)
-- [H2 Database](https://h2database.com/html/main.html)
 
 Khi nâng cấp từ snapshot registry cũ, `migration/LegacyRegistryMigration` chuyển dữ liệu sang các bảng `tracker_accounts`, `tracker_peers`, `tracker_files`, `tracker_transfers`, `tracker_audit` trong một transaction. Bản JSON trong `registry` được giữ nguyên; bảng `tracker_migrations` đánh dấu để không nhập lại sau restart. Migration lỗi sẽ rollback toàn bộ. Session và vé tải vẫn chỉ nằm trong RAM, peer được đặt offline khi tracker khởi động lại.
 

@@ -19,12 +19,18 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
-            "spring.datasource.url=jdbc:h2:mem:tracker-tests;DB_CLOSE_DELAY=-1",
             "peermesh.admin.username=admin",
             "virustotal.worker-enabled=false",
             "peermesh.admin.password=test-admin-secret-2026"
         })
 class TrackerIntegrationTest {
+    @org.springframework.test.context.DynamicPropertySource
+    static void database(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> TestDatabase.url("peermesh_test_tracker"));
+        registry.add("spring.datasource.username", TestDatabase::username);
+        registry.add("spring.datasource.password", TestDatabase::password);
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+    }
     @Autowired TrackerAuthService authService;
     @Autowired TrackerPeerService peerService;
     @Autowired TrackerFileService fileService;

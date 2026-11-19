@@ -33,7 +33,7 @@ const download = createDownloadActions({ model, data, requests });
 const library = createLibraryActions({ model, data, requests });
 const lab = createLabActions({ model, data, requests });
 const bandwidth = createBandwidthActions({ model, data, requests });
-const room = createRoomActions({ data, requests });
+const room = createRoomActions({ model, data, requests });
 let searchTimer;
 
 function render() {
@@ -64,13 +64,16 @@ $('#bandwidth-form').addEventListener('submit', (event) => {
   bandwidth.save(event.target).catch((error) => UI.toast(error.message, true));
 });
 document.addEventListener('submit', (event) => {
-  if (event.target.id === 'room-create-form') {
+  const form = event.target;
+  // A control named "id" shadows form.id, so read the id attribute instead of the property.
+  const formId = form instanceof HTMLFormElement ? form.getAttribute('id') : '';
+  if (formId === 'room-create-form') {
     event.preventDefault();
-    room.create(event.target).catch((error) => UI.toast(error.message, true));
+    room.create(form).catch((error) => UI.toast(error.message, true));
   }
-  if (event.target.id === 'room-join-form') {
+  if (formId === 'room-join-form') {
     event.preventDefault();
-    room.join(event.target).catch((error) => UI.toast(error.message, true));
+    room.join(form).catch((error) => UI.toast(error.message, true));
   }
 });
 
@@ -107,6 +110,7 @@ document.addEventListener('click', async (event) => {
     }
     if (button.dataset.tab) {
       model.tab = button.dataset.tab;
+      model.roomId = '';
       render();
       if (model.tab === 'explore') await data.loadCatalog();
       if (model.tab === 'rooms') await data.loadRooms();
@@ -115,6 +119,14 @@ document.addEventListener('click', async (event) => {
     if (button.id === 'refresh-catalog') return await data.loadCatalog();
     const { action, id } = button.dataset;
     if (action === 'bandwidth') bandwidth.open();
+    else if (action === 'room-open') {
+      model.roomId = button.dataset.room;
+      render();
+    } else if (action === 'room-back') {
+      model.roomId = '';
+      render();
+    } else if (action === 'room-join-card')
+      await room.joinCard(button.dataset.room, button.dataset.password === 'true');
     else if (action === 'room-approve')
       await room.decide(button.dataset.room, button.dataset.user, 'APPROVED');
     else if (action === 'room-reject')

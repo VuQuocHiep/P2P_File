@@ -27,7 +27,7 @@ Tổng: **10/10 PASS**.
 - Tiếp tục tải, tắt nguồn A giữa chừng, hoàn tất bằng B: PASS.
 - So sánh từng byte file tải xong với file gốc và SHA-256: PASS.
 - Máy nhận trở thành nguồn và server nhận báo cáo hoàn tất: PASS.
-- Restart tracker và kiểm tra tài khoản, peer, file được giữ trong H2: PASS.
+- Restart tracker và kiểm tra tài khoản, peer, file được giữ trong cơ sở dữ liệu: PASS.
 
 Kết quả máy đọc được nằm trong [e2e-result.json](./e2e-result.json). Tổng lượng nhận theo nguồn có thể lớn hơn dung lượng file vì kịch bản cố ý làm hỏng một phần đã nhận, buộc tải lại.
 

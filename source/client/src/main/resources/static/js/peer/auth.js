@@ -32,6 +32,7 @@ export function createPeerAuth({ model, live, data, render, requests, dialogs, c
     dialogs.invalidate();
     model.snapshot = null;
     model.catalog = [];
+    model.roomId = '';
     for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
     $('#login').classList.remove('hidden');
     $('#app').classList.add('hidden');

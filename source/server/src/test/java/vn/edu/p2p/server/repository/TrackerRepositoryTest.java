@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.p2p.common.model.Manifest;
+import vn.edu.p2p.server.TestDatabase;
 import vn.edu.p2p.server.entity.RegistryEntity;
 import vn.edu.p2p.server.model.*;
 import vn.edu.p2p.server.migration.legacy.*;
@@ -22,9 +23,17 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({LegacyRegistryMigration.class, TrackerRepositoryTest.JsonConfiguration.class})
 class TrackerRepositoryTest {
+    @org.springframework.test.context.DynamicPropertySource
+    static void database(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> TestDatabase.url("peermesh_test_repository"));
+        registry.add("spring.datasource.username", TestDatabase::username);
+        registry.add("spring.datasource.password", TestDatabase::password);
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+    }
+
     @TestConfiguration
     static class JsonConfiguration {
         @Bean

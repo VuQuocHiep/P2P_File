@@ -15,10 +15,17 @@ import vn.edu.p2p.server.service.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-@SpringBootTest(properties = {"spring.datasource.url=jdbc:h2:mem:scan-jobs;DB_CLOSE_DELAY=-1",
-        "peermesh.admin.username=admin", "peermesh.admin.password=test-admin-secret-2026",
+@SpringBootTest(properties = {"peermesh.admin.username=admin",
+        "peermesh.admin.password=test-admin-secret-2026",
         "virustotal.worker-enabled=false"})
 class ScanJobIntegrationTest {
+    @org.springframework.test.context.DynamicPropertySource
+    static void database(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> TestDatabase.url("peermesh_test_scan_jobs"));
+        registry.add("spring.datasource.username", TestDatabase::username);
+        registry.add("spring.datasource.password", TestDatabase::password);
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+    }
     @Autowired TrackerAuthService auth;
     @Autowired TrackerPeerService peers;
     @Autowired TrackerFileService files;

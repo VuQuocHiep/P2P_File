@@ -6,6 +6,7 @@ export function createPeerState() {
     catalog: [],
     query: '',
     rooms: [],
+    roomId: '',
     roomFiles: {},
     roomRequests: {},
     roomMembers: {},
