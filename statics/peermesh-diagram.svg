@@ -1,1 +1,176 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="480" viewBox="0 0 1100 480" role="img" aria-labelledby="title desc"><title id="title">Kiến trúc PeerMesh</title><desc id="desc">Tracker duyệt tài khoản, peer và file. Ba peer giao tiếp metadata qua HTTP và truyền chunk trực tiếp qua TCP.</desc><defs><marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#59e0ba"/></marker></defs><rect width="1100" height="480" rx="20" fill="#0b1020"/><g font-family="Segoe UI,Arial,sans-serif" text-anchor="middle"><text x="550" y="41" fill="#edf3ff" font-size="23" font-weight="700">PeerMesh · Tracker điều phối, các peer truyền file trực tiếp</text><rect x="370" y="70" width="360" height="112" rx="14" fill="#182b41" stroke="#3b6080"/><text x="550" y="102" fill="#edf3ff" font-size="19">SERVER / TRACKER · Spring Boot</text><text x="550" y="130" fill="#a8c0d8" font-size="14">Duyệt tài khoản · Peer · Danh mục file</text><text x="550" y="155" fill="#a8c0d8" font-size="14">H2 · HTTP · WebSocket · Heartbeat</text><g stroke="#7da8ff" stroke-width="2" stroke-dasharray="6 5"><path d="M410 182L205 285"/><path d="M550 182V285"/><path d="M690 182L895 285"/></g><rect x="362" y="207" width="376" height="27" rx="7" fill="#0b1020"/><text x="550" y="226" fill="#7da8ff" font-size="13">HTTP / JSON: đăng nhập, tìm nguồn, cấp quyền</text><g fill="#15332e" stroke="#367568"><rect x="70" y="285" width="270" height="110" rx="14"/><rect x="415" y="285" width="270" height="110" rx="14"/><rect x="760" y="285" width="270" height="110" rx="14"/></g><g fill="#edf3ff" font-size="19"><text x="205" y="318">PEER A</text><text x="550" y="318">PEER B</text><text x="895" y="318">PEER C</text></g><g fill="#a7c8bf" font-size="14"><text x="205" y="346">WebSocket + Java TCP</text><text x="550" y="346">WebSocket + Java TCP</text><text x="895" y="346">WebSocket + Java TCP</text><text x="205" y="373">Gửi &amp; nhận chunk</text><text x="550" y="373">Gửi &amp; nhận chunk</text><text x="895" y="373">Gửi &amp; nhận chunk</text></g><g stroke="#59e0ba" stroke-width="2.5" marker-start="url(#arrow)" marker-end="url(#arrow)" fill="none"><path d="M350 340H405"/><path d="M695 340H750"/><path d="M205 406V436H895V406"/></g><rect x="290" y="420" width="520" height="28" rx="7" fill="#0b1020"/><text x="550" y="440" fill="#59e0ba" font-size="14">TCP PM01 · Chunk 256 KiB · Nhiều nguồn · SHA-256 · Resume</text></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="580" viewBox="0 0 1120 580" role="img" aria-labelledby="title desc">
+  <title id="title">Kiến trúc Hệ thống PeerMesh</title>
+  <desc id="desc">Sơ đồ kiến trúc P2P Hybrid ngắn gọn: Tracker Spring Boot và MySQL 8 điều phối, VirusTotal quét mã độc, các Peer truyền chunk trực tiếp qua TCP Socket PM01.</desc>
+
+  <defs>
+    <!-- Background Grid Pattern -->
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-opacity="0.4"/>
+    </pattern>
+
+    <!-- Arrow Markers -->
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 1.5L8 5L0 8.5z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowBlueRev" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M8 1.5L0 5L8 8.5z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 1.5L8 5L0 8.5z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowGreenRev" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M8 1.5L0 5L8 8.5z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 1.5L8 5L0 8.5z" fill="#a855f7"/>
+    </marker>
+    <marker id="arrowPurpleRev" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M8 1.5L0 5L8 8.5z" fill="#a855f7"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 1.5L8 5L0 8.5z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrowAmberRev" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M8 1.5L0 5L8 8.5z" fill="#f59e0b"/>
+    </marker>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="1120" height="580" rx="16" fill="#0b1020"/>
+  <rect width="1120" height="580" fill="url(#grid)"/>
+
+  <!-- ==================== HEADER ==================== -->
+  <g id="header" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <text x="560" y="38" text-anchor="middle" fill="#f8fafc" font-size="21" font-weight="800" letter-spacing="0.5">Kiến trúc Hệ thống PeerMesh</text>
+    <text x="560" y="58" text-anchor="middle" fill="#94a3b8" font-size="13">Tracker điều phối tập trung · Truyền chunk dữ liệu trực tiếp qua TCP Socket</text>
+  </g>
+
+  <!-- ==================== TOP TIER: SERVICES & TRACKER ==================== -->
+  <!-- 1. MySQL 8 Database -->
+  <g id="db-box" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <rect x="50" y="78" width="210" height="118" rx="10" fill="#181329" stroke="#8b5cf6" stroke-width="1.5"/>
+    <text x="155" y="102" text-anchor="middle" fill="#f8fafc" font-size="14.5" font-weight="700">MySQL 8 Database</text>
+    <text x="155" y="119" text-anchor="middle" fill="#c084fc" font-size="11">Spring Data JPA</text>
+    <line x1="65" y1="128" x2="245" y2="128" stroke="#332454" stroke-width="1"/>
+    <text x="155" y="148" text-anchor="middle" fill="#cbd5e1" font-size="11.5">Tài khoản · Peer · Danh mục file</text>
+    <text x="155" y="168" text-anchor="middle" fill="#cbd5e1" font-size="11.5">Phòng chia sẻ · Phiên tải · Nhật ký</text>
+  </g>
+
+  <!-- Connector: MySQL <-> Tracker -->
+  <line x1="262" y1="137" x2="298" y2="137" stroke="#8b5cf6" stroke-width="1.8" marker-start="url(#arrowPurpleRev)" marker-end="url(#arrowPurple)"/>
+
+  <!-- 2. Central Tracker -->
+  <g id="tracker-box" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <rect x="300" y="74" width="520" height="126" rx="12" fill="#102038" stroke="#0ea5e9" stroke-width="2"/>
+    <text x="560" y="102" text-anchor="middle" fill="#f8fafc" font-size="17" font-weight="800">SERVER / TRACKER · Spring Boot 3.5</text>
+    <text x="560" y="123" text-anchor="middle" fill="#7dd3fc" font-size="12.5">Duyệt tài khoản, peer, file · Cấp vé tải 60s · Quản lý phòng kín</text>
+    <line x1="320" y1="135" x2="800" y2="135" stroke="#1d3d66" stroke-width="1"/>
+    <text x="560" y="156" text-anchor="middle" fill="#bae6fd" font-size="12">HTTP / REST API · Spring WebSocket (live 1s) · Heartbeat (5s / offline 20s)</text>
+    <text x="560" y="176" text-anchor="middle" fill="#94a3b8" font-size="11.5">Giám sát phiên tải thời gian thực · Đồng bộ lệnh xóa tệp</text>
+  </g>
+
+  <!-- Connector: Tracker <-> VirusTotal -->
+  <line x1="822" y1="137" x2="858" y2="137" stroke="#f59e0b" stroke-width="1.8" marker-start="url(#arrowAmberRev)" marker-end="url(#arrowAmber)"/>
+
+  <!-- 3. VirusTotal Cloud API -->
+  <g id="vt-box" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <rect x="860" y="78" width="210" height="118" rx="10" fill="#24170c" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="965" y="102" text-anchor="middle" fill="#f8fafc" font-size="14.5" font-weight="700">VirusTotal API</text>
+    <text x="965" y="119" text-anchor="middle" fill="#fbbf24" font-size="11">Cloud Malware Scan</text>
+    <line x1="875" y1="128" x2="1055" y2="128" stroke="#482d15" stroke-width="1"/>
+    <text x="965" y="148" text-anchor="middle" fill="#cbd5e1" font-size="11.5">Tra cứu mã băm SHA-256</text>
+    <text x="965" y="168" text-anchor="middle" fill="#cbd5e1" font-size="11.5">Upload quét file mẫu ≤ 32 MiB</text>
+  </g>
+
+  <!-- ==================== MIDDLE TIER: SIGNALING CHANNEL ==================== -->
+  <g id="signaling-plane" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <!-- Channel Bar -->
+    <rect x="200" y="214" width="720" height="36" rx="8" fill="#0d1f33" stroke="#0284c7" stroke-width="1.2" stroke-dasharray="5 3"/>
+    <text x="560" y="237" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="700">HTTP / REST &amp; WebSocket: Đăng ký · Tìm nguồn · Cấp vé tải · Giám sát phiên &amp; phòng</text>
+
+    <!-- Vertical Lines to Peers -->
+    <line x1="205" y1="198" x2="205" y2="266" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 3" marker-start="url(#arrowBlueRev)" marker-end="url(#arrowBlue)"/>
+    <line x1="560" y1="202" x2="560" y2="266" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 3" marker-start="url(#arrowBlueRev)" marker-end="url(#arrowBlue)"/>
+    <line x1="915" y1="198" x2="915" y2="266" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 3" marker-start="url(#arrowBlueRev)" marker-end="url(#arrowBlue)"/>
+  </g>
+
+  <!-- ==================== PEER TIER ==================== -->
+  <!-- 1. PEER A -->
+  <g id="peer-a" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <rect x="50" y="268" width="310" height="148" rx="12" fill="#0d2420" stroke="#10b981" stroke-width="1.5"/>
+    <text x="70" y="295" fill="#f8fafc" font-size="15.5" font-weight="800">PEER A · Seeder</text>
+    <text x="70" y="312" fill="#6ee7b7" font-size="11.5">TCP 127.0.0.1:29001 · Web UI 8081</text>
+    <line x1="70" y1="322" x2="340" y2="322" stroke="#17453b" stroke-width="1"/>
+    <text x="70" y="343" fill="#e2e8f0" font-size="11.5">• TCP Server: 4 Upload Workers</text>
+    <text x="70" y="363" fill="#e2e8f0" font-size="11.5">• Blobs đầy đủ · Manifest SHA-256</text>
+    <text x="70" y="383" fill="#e2e8f0" font-size="11.5">• Giới hạn băng thông KiB/s</text>
+    <text x="70" y="401" fill="#34d399" font-size="11">✓ Chia sẻ file &amp; Cho phép quét VirusTotal</text>
+  </g>
+
+  <!-- 2. PEER B -->
+  <g id="peer-b" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <rect x="405" y="268" width="310" height="148" rx="12" fill="#0d2420" stroke="#10b981" stroke-width="1.5"/>
+    <text x="425" y="295" fill="#f8fafc" font-size="15.5" font-weight="800">PEER B · Co-Seeder</text>
+    <text x="425" y="312" fill="#6ee7b7" font-size="11.5">TCP 127.0.0.1:29002 · Web UI 8082</text>
+    <line x1="425" y1="322" x2="695" y2="322" stroke="#17453b" stroke-width="1"/>
+    <text x="425" y="343" fill="#e2e8f0" font-size="11.5">• TCP Server: 4 Upload Workers</text>
+    <text x="425" y="363" fill="#e2e8f0" font-size="11.5">• Chia sẻ chunk song song cùng Peer A</text>
+    <text x="425" y="383" fill="#e2e8f0" font-size="11.5">• Giới hạn băng thông KiB/s</text>
+    <text x="425" y="401" fill="#34d399" font-size="11">✓ Đồng nguồn chia tải &amp; Chịu lỗi</text>
+  </g>
+
+  <!-- 3. PEER C -->
+  <g id="peer-c" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <rect x="760" y="268" width="310" height="148" rx="12" fill="#24121b" stroke="#f43f5e" stroke-width="1.5"/>
+    <text x="780" y="295" fill="#f8fafc" font-size="15.5" font-weight="800">PEER C · Leecher &amp; Lab</text>
+    <text x="780" y="312" fill="#fda4af" font-size="11.5">TCP 127.0.0.1:29003 · Web UI 8083</text>
+    <line x1="780" y1="322" x2="1050" y2="322" stroke="#4a1c2d" stroke-width="1"/>
+    <text x="780" y="343" fill="#e2e8f0" font-size="11.5">• 4 Download Workers / file (tối đa 2 file)</text>
+    <text x="780" y="363" fill="#e2e8f0" font-size="11.5">• Ghép chunk 256 KiB · Checkpoint Resume</text>
+    <text x="780" y="383" fill="#e2e8f0" font-size="11.5">• Đổi nguồn khi timeout / sai SHA-256</text>
+    <text x="780" y="401" fill="#fb7185" font-size="11">✓ Phòng thí nghiệm: Đo tốc độ 1 vs đa nguồn</text>
+  </g>
+
+  <!-- ==================== P2P DIRECT TCP DATA PLANE ==================== -->
+  <g id="tcp-data-plane" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <!-- Outer Container -->
+    <rect x="50" y="432" width="1020" height="66" rx="10" fill="#061f1a" stroke="#10b981" stroke-width="1.8"/>
+
+    <!-- Direct horizontal connection lines -->
+    <line x1="160" y1="465" x2="200" y2="465" stroke="#34d399" stroke-width="2.5" marker-start="url(#arrowGreenRev)" marker-end="url(#arrowGreen)"/>
+    <line x1="920" y1="465" x2="960" y2="465" stroke="#34d399" stroke-width="2.5" marker-start="url(#arrowGreenRev)" marker-end="url(#arrowGreen)"/>
+
+    <!-- Center Banner -->
+    <rect x="202" y="440" width="716" height="50" rx="8" fill="#081715" stroke="#10b981" stroke-width="1"/>
+    <text x="560" y="461" text-anchor="middle" fill="#34d399" font-size="13" font-weight="800" letter-spacing="0.5">TCP PM01 · TRUYỀN DỮ LIỆU FILE TRỰC TIẾP GIỮA CÁC PEER</text>
+    <text x="560" y="480" text-anchor="middle" fill="#a7f3d0" font-size="11.5">Chunk 256 KiB · Đa nguồn song song · Xác minh vé 60s · Băm SHA-256 · Tự lưu tiến độ (Resume)</text>
+  </g>
+
+  <!-- ==================== FOOTER & LEGEND ==================== -->
+  <g id="footer-legend" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <rect x="50" y="514" width="1020" height="42" rx="8" fill="#091220" stroke="#1e293b" stroke-width="1"/>
+
+    <!-- Legend Items Centered -->
+    <g transform="translate(68, 524)">
+      <!-- 1. Blue -->
+      <circle cx="10" cy="11" r="4" fill="#38bdf8"/>
+      <text x="20" y="15" fill="#bae6fd" font-size="11" font-weight="600">Điều khiển (HTTP/WS)</text>
+
+      <!-- 2. Green -->
+      <circle cx="215" cy="11" r="4" fill="#10b981"/>
+      <text x="225" y="15" fill="#a7f3d0" font-size="11" font-weight="600">Dữ liệu P2P (TCP PM01)</text>
+
+      <!-- 3. Purple -->
+      <circle cx="430" cy="11" r="4" fill="#a855f7"/>
+      <text x="440" y="15" fill="#e9d5ff" font-size="11" font-weight="600">Cơ sở dữ liệu (MySQL 8)</text>
+
+      <!-- 4. Amber -->
+      <circle cx="640" cy="11" r="4" fill="#f59e0b"/>
+      <text x="650" y="15" fill="#fde68a" font-size="11" font-weight="600">Quét mã độc (VirusTotal)</text>
+
+      <!-- 5. Rose -->
+      <circle cx="850" cy="11" r="4" fill="#f43f5e"/>
+      <text x="860" y="15" fill="#fecdd3" font-size="11" font-weight="600">Đo kiểm (P2P Lab)</text>
+    </g>
+  </g>
+</svg>

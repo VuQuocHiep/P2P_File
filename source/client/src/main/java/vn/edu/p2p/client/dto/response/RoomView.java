@@ -1,6 +1,6 @@
 package vn.edu.p2p.client.dto.response;
 
-/** Room summary returned by the tracker. */
+/** Room summary returned by the tracker; membership is null when the viewer is not a member. */
 public record RoomView(
         String id,
         String name,
@@ -11,4 +11,5 @@ public record RoomView(
         long members,
         long pendingRequests,
         long files,
-        long created) {}
+        long created,
+        String status) {}

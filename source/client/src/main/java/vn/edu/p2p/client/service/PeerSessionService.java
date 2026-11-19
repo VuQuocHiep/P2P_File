@@ -9,6 +9,7 @@ import java.nio.file.*;
 import java.util.*;
 import org.springframework.stereotype.Service;
 import vn.edu.p2p.client.dto.response.*;
+import vn.edu.p2p.client.exception.TrackerFailure;
 import vn.edu.p2p.client.mapper.TrackerResponseMapper;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
@@ -69,6 +70,19 @@ public class PeerSessionService {
     }
 
     void connectPeer() throws Exception {
+        try {
+            registerPeer();
+        } catch (TrackerFailure failure) {
+            // A stored peer id outlives the tracker row: the database can be recreated, and the
+            // id can also belong to another account. The tracker answers 403 in both cases, so
+            // forget the stale id and register this device again instead of failing every login.
+            if (failure.status != 403 || peerId().isBlank()) throw failure;
+            forgetPeerId();
+            registerPeer();
+        }
+    }
+
+    private void registerPeer() throws Exception {
         Map<String, Object> body;
         synchronized (context.storage.monitor()) {
             body =
@@ -90,6 +104,32 @@ public class PeerSessionService {
         }
         context.peerStatus = result.path("status").asText();
         context.connection = "Đã kết nối tracker";
+    }
+
+    private String peerId() {
+        synchronized (context.storage.monitor()) {
+            return context.profile.getPeerId();
+        }
+    }
+
+    private void forgetPeerId() {
+        synchronized (context.storage.monitor()) {
+            context.profile.updatePeerId("");
+            context.storage.saveCheckpoint();
+        }
+    }
+
+    /** Reports progress and re-registers once when the tracker no longer knows this peer. */
+    private JsonNode callHeartbeat(String id) throws Exception {
+        try {
+            return context.tracker.call("POST", "/api/peers/heartbeat", Map.of("peerId", id));
+        } catch (TrackerFailure failure) {
+            if (failure.status != 403) throw failure;
+            forgetPeerId();
+            connectPeer();
+            return context.tracker.call(
+                    "POST", "/api/peers/heartbeat", Map.of("peerId", peerId()));
+        }
     }
 
     public void logout() {
@@ -120,18 +160,12 @@ public class PeerSessionService {
                 context.connection = "Tài khoản đang chờ duyệt";
                 return;
             }
-            String id;
-            synchronized (context.storage.monitor()) {
-                id = context.profile.getPeerId();
-            }
+            String id = peerId();
             if (id.isBlank()) {
                 connectPeer();
-                synchronized (context.storage.monitor()) {
-                    id = context.profile.getPeerId();
-                }
+                id = peerId();
             }
-            JsonNode result =
-                    context.tracker.call("POST", "/api/peers/heartbeat", Map.of("peerId", id));
+            JsonNode result = callHeartbeat(id);
             context.peerStatus = result.path("status").asText();
             context.connection = "Đã kết nối tracker";
             context.catalogSnapshot = context.tracker.call("GET", "/api/files", null);

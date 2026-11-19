@@ -142,7 +142,7 @@ test('a save completed after logout cannot update the next session', async () =>
 
 test('the bandwidth panel distinguishes live payload speeds and unlimited settings', async () => {
   const f = await fixture({});
-  const { bandwidthPanel } = await f.load(peer + 'views/bandwidth.js');
+  const { bandwidthPanel } = await f.load(peer + 'pages/bandwidth.js');
   const html = bandwidthPanel({
     uploadLimitKiB: 64,
     downloadLimitKiB: 0,

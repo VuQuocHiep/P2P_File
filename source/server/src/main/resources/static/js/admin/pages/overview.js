@@ -1,5 +1,5 @@
 import { UI, esc, bytes } from '/assets/js/ui.js';
-import { peerTable, auditRows } from './tables.js';
+import { peerTable, roomTable, auditRows } from '../components/tables.js';
 
 export function overview(data) {
   const pending = [
@@ -93,6 +93,13 @@ export function overview(data) {
           : UI.empty('Tất cả yêu cầu đã được xử lý.')}
       </section>
     </div>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Phòng chia sẻ</h2>
+        <button class="small ghost" data-goto="rooms">Xem tất cả →</button>
+      </div>
+      ${roomTable(data.rooms.slice(0, 5))}
+    </section>
     <section class="panel">
       <div class="panel-head">
         <h2>Thiết bị trong mạng</h2>

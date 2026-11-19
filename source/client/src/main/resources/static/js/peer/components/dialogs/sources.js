@@ -1,6 +1,6 @@
 import { $ } from '/assets/js/dom.js';
 import { UI, esc } from '/assets/js/ui.js';
-import { peerApi } from '../api.js';
+import { peerApi } from '../../api/index.js';
 import { renderChunkHistory } from './chunk-history.js';
 
 export function createFileDialogs({ model, client = peerApi }) {

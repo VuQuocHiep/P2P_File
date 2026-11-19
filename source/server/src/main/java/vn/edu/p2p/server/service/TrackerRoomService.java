@@ -35,10 +35,29 @@ public class TrackerRoomService {
                 AccountEntity a = access.account(token, true);
                 var result = new ArrayList<RoomResponse>();
                 for (RoomEntity room : context.rooms.findAllByOrderByPositionAsc()) {
-                    String membership = membership(room, a.username);
-                    if (membership != null && !"REJECTED".equals(membership))
-                        result.add(response(room, membership));
+                    // Every active room is discoverable; membership tells the UI what to offer.
+                    if (!"ACTIVE".equals(room.status)) continue;
+                    result.add(response(room, membership(room, a.username)));
                 }
+                return result;
+            } catch (Exception | Error failure) {
+                context.rollback(transaction);
+                throw failure;
+            } finally {
+                context.commit(transaction);
+            }
+        }
+    }
+
+    /** Every room with its pending queue, for the admin dashboard. */
+    public List<RoomResponse> adminRooms(String token) {
+        synchronized (context) {
+            var transaction = context.beginTransaction();
+            try {
+                access.admin(token);
+                var result = new ArrayList<RoomResponse>();
+                for (RoomEntity room : context.rooms.findAllByOrderByPositionAsc())
+                    result.add(response(room, null, true));
                 return result;
             } catch (Exception | Error failure) {
                 context.rollback(transaction);
@@ -367,11 +386,17 @@ public class TrackerRoomService {
     }
 
     private RoomResponse response(RoomEntity room, String membership) {
+        return response(room, membership, "OWNER".equals(membership));
+    }
+
+    private RoomResponse response(RoomEntity room, String membership, boolean includePending) {
         long members = 1 + context.roomMembers.findByRoomIdAndStatusOrderByRequestedAtAsc(room.id, "APPROVED")
                 .stream()
                 .filter(m -> !room.owner.equals(m.username))
                 .count();
-        long pending = context.roomMembers.findByRoomIdAndStatusOrderByRequestedAtAsc(room.id, "PENDING").size();
+        long pending = includePending
+                ? context.roomMembers.findByRoomIdAndStatusOrderByRequestedAtAsc(room.id, "PENDING").size()
+                : 0;
         long files = context.files.findByRoomIdOrderByPositionAsc(room.id).size();
         return new RoomResponse(
                 room.id,
@@ -383,7 +408,8 @@ public class TrackerRoomService {
                 members,
                 pending,
                 files,
-                room.created);
+                room.created,
+                room.status);
     }
 
     private static String memberId(String roomId, String username) {

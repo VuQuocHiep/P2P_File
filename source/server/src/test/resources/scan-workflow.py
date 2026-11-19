@@ -7,6 +7,7 @@ import hashlib
 import http.cookiejar
 import http.server
 import json
+import os
 import pathlib
 import socket
 import subprocess
@@ -19,6 +20,13 @@ import uuid
 ROOT = pathlib.Path(__file__).resolve().parents[5]
 RUN = ROOT / "source/target" / ("scan-job-e2e-" + uuid.uuid4().hex[:8])
 RUN.mkdir(parents=True)
+DB_NAME = "peermesh_e2e_scan_" + uuid.uuid4().hex[:8]
+DB_URL = ("jdbc:mysql://" + os.environ.get("DB_HOST", "localhost") + ":"
+          + os.environ.get("DB_PORT", "3306") + "/" + DB_NAME
+          + "?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+          + "&serverTimezone=Asia/Ho_Chi_Minh&characterEncoding=UTF-8")
+DB_USERNAME = os.environ.get("DB_USERNAME", "root")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
 DATA = b"Harmless fixture for testing the peer-to-tracker upload workflow."
 HASH = hashlib.sha256(DATA).hexdigest()
 uploaded = threading.Event()
@@ -125,7 +133,9 @@ threading.Thread(target=fake.serve_forever, daemon=True).start()
 try:
     tracker_port, peer_port, tcp_port = port(), port(), port()
     tracker_args = [f"--server.port={tracker_port}", "--server.address=127.0.0.1",
-                    "--spring.datasource.url=jdbc:h2:file:" + str(RUN / "registry"),
+                    "--spring.datasource.url=" + DB_URL,
+                    "--spring.datasource.username=" + DB_USERNAME,
+                    "--spring.datasource.password=" + DB_PASSWORD,
                     "--peermesh.admin.username=admin", "--peermesh.admin.password=local-test-password-123",
                     "--virustotal.api-key=local-test-key",
                     f"--virustotal.base-url=http://127.0.0.1:{fake.server_port}/api/v3"]
@@ -157,7 +167,7 @@ try:
     assert file_state()["status"] == "APPROVED"
     print("PASS: waiting scan does not prevent manual approval", flush=True)
 
-    # Restart the tracker with the same H2 file while the request is pending.
+    # Restart the tracker against the same MySQL schema while the request is pending.
     tracker_process.terminate()
     tracker_process.wait(timeout=20)
     tracker_process = launch("server", tracker_args)

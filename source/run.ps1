@@ -4,8 +4,7 @@ param(
     [int]$TcpPort = 9001,
     [string]$DataDir = '',
     [string]$TrackerUrl = 'http://127.0.0.1:8080',
-    [int]$UploadDelayMs = 0,
-    [switch]$UseH2
+    [int]$UploadDelayMs = 0
 )
 $ErrorActionPreference = 'Stop'
 if ($WebPort -eq 0) { $WebPort = if ($Role -eq 'server') { 8080 } else { 8081 } }
@@ -17,11 +16,7 @@ $DataDir = [System.IO.Path]::GetFullPath($DataDir)
 $temporary = Join-Path $DataDir 'temp'
 New-Item -ItemType Directory -Force -Path $temporary | Out-Null
 $javaArgs = @("-Djava.io.tmpdir=$temporary", '-jar', $jar, "--server.port=$WebPort")
-if ($Role -eq 'server') {
-    if ($UseH2 -or $env:USE_H2) {
-        $javaArgs += @("--spring.profiles.active=h2", "--spring.datasource.url=jdbc:h2:file:$DataDir/database")
-    }
-} else {
+if ($Role -eq 'peer') {
     $javaArgs += @("--peer.tcp-port=$TcpPort", "--peer.data=$DataDir", "--peer.tracker=$TrackerUrl", "--peer.upload-delay-ms=$UploadDelayMs")
 }
 Write-Host "PeerMesh $Role : http://127.0.0.1:$WebPort (Ctrl+C to stop)"

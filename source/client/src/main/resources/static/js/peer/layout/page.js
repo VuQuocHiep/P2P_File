@@ -1,12 +1,12 @@
 import { $, updateHTML } from '/assets/js/dom.js';
-import { ready, titles, notes } from '../state.js';
-import { statCards } from './stats.js';
-import { explore } from './explore.js';
-import { rooms } from './rooms.js';
-import { downloads } from './downloads.js';
-import { library } from './library.js';
-import { activity } from './activity.js';
-import { renderLab } from '../../lab/lab.js';
+import { ready, titles, notes } from '../store/state.js';
+import { statCards } from '../components/stats.js';
+import { explore } from '../pages/explore.js';
+import { rooms } from '../pages/rooms.js';
+import { downloads } from '../pages/downloads.js';
+import { library } from '../pages/library.js';
+import { activity } from '../pages/activity.js';
+import { renderLab } from '../pages/lab.js';
 
 export function createPeerRenderer(model) {
   let lastTab = '';
@@ -58,7 +58,14 @@ export function createPeerRenderer(model) {
       {
         explore: () => explore(state, catalog, query),
         rooms: () =>
-          rooms(state, model.rooms, model.roomRequests, model.roomFiles, model.roomMembers),
+          rooms(
+            state,
+            model.rooms,
+            model.roomRequests,
+            model.roomFiles,
+            model.roomMembers,
+            model.roomId,
+          ),
         downloads: () => downloads(state),
         library: () => library(state),
         activity: () => activity(state),

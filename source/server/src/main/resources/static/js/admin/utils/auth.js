@@ -1,5 +1,5 @@
 import { $ } from '/assets/js/dom.js';
-import { adminApi } from './api.js';
+import { adminApi } from '../api/index.js';
 
 export function createAdminAuth({ model, live, data, requests, client = adminApi }) {
   function showApp(user) {

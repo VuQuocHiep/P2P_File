@@ -1,7 +1,7 @@
 import { $, updateHTML } from '/assets/js/dom.js';
-import { titles, notes } from '../state.js';
-import { overview } from './overview.js';
-import { accountTable, peerTable, fileTable, transferTable, auditRows } from './tables.js';
+import { titles, notes } from '../store/state.js';
+import { overview } from '../pages/overview.js';
+import { accountTable, peerTable, fileTable, transferTable, roomTable, auditRows } from '../components/tables.js';
 
 export function createAdminRenderer(model) {
   let lastTab = '';
@@ -15,6 +15,7 @@ export function createAdminRenderer(model) {
     const views = {
       accounts: () => accountTable(data),
       peers: () => peerTable(data.peers),
+      rooms: () => roomTable(data.rooms),
       files: () => fileTable(data, model.malware),
       transfers: () => transferTable(data),
       audit: () => auditRows(data),

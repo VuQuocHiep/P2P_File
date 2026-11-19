@@ -80,7 +80,7 @@ test('failed priority updates retain the snapshot and release the job for retry'
 
 test('downloads display active files then queue positions, priorities and paused history', async () => {
   const f = await fixture();
-  const { downloads } = await f.load(peer + 'views/downloads.js');
+  const { downloads } = await f.load(peer + 'pages/downloads.js');
   const job = (id, status, queuePosition = 0) => ({
     id,
     fileId: id,
@@ -141,7 +141,7 @@ test('priority transport uses PATCH and the existing authenticated API helper', 
       };
     },
   });
-  const { peerApi } = await load(peer + 'api.js');
+  const { peerApi } = await load(peer + 'api/index.js');
   await peerApi.downloadPriority('job-1', 'LOW');
   assert.equal(calls[0].url, '/api/downloads/job-1/priority');
   assert.equal(calls[0].method, 'PATCH');

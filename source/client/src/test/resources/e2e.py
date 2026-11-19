@@ -21,6 +21,25 @@ import uuid
 ROOT = Path(__file__).resolve().parents[5]
 SOURCE = ROOT / "source"
 
+DB_HOST = os.environ.get("DB_HOST", "localhost")
+DB_PORT = os.environ.get("DB_PORT", "3306")
+DB_USERNAME = os.environ.get("DB_USERNAME", "root")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
+
+
+def tracker_database():
+    """Name of the throw-away MySQL schema this run uses."""
+    return "peermesh_e2e_" + uuid.uuid4().hex[:8]
+
+
+def tracker_datasource(database):
+    """Tracker arguments pointing at one MySQL schema; reuse them to restart the tracker."""
+    url = (f"jdbc:mysql://{DB_HOST}:{DB_PORT}/{database}"
+           "?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+           "&serverTimezone=Asia/Ho_Chi_Minh&characterEncoding=UTF-8")
+    return (f"--spring.datasource.url={url}", f"--spring.datasource.username={DB_USERNAME}",
+            f"--spring.datasource.password={DB_PASSWORD}")
+
 
 class Api:
     def __init__(self, port):
@@ -150,6 +169,7 @@ def main():
     logs = []
     password = "e2e-password-2026"
     admin_password = "e2e-admin-password-2026"
+    tracker_db = tracker_database()
 
     def start(name, module, *config):
         log = open(run / (name + ".log"), "ab")
@@ -174,7 +194,7 @@ def main():
         return admin.call(f"/api/admin/{kind}/{id_}", "PATCH", {"status": status})
 
     try:
-        start("tracker", "server", f"--server.port={args.port}", f"--spring.datasource.url=jdbc:h2:file:{run / 'tracker' / 'registry'}",
+        start("tracker", "server", f"--server.port={args.port}", *tracker_datasource(tracker_db),
               f"--peermesh.admin.password={admin_password}")
         admin = Api(args.port)
         wait_for(lambda: admin.call("/api/health"), "tracker startup")
@@ -320,13 +340,13 @@ def main():
         print("PASS: automatic reseeding and tracker reporting",flush=True)
         # Restart tracker to prove registry data is durable, independent of its sessions.
         processes["tracker"].terminate();processes["tracker"].wait(timeout=30)
-        start("tracker", "server", f"--server.port={args.port}", f"--spring.datasource.url=jdbc:h2:file:{run / 'tracker' / 'registry'}")
+        start("tracker", "server", f"--server.port={args.port}", *tracker_datasource(tracker_db))
         wait_for(lambda: admin.call('/api/health'),"tracker restart")
         admin=Api(args.port)
         admin.call('/api/auth/login','POST',{"username":"admin","password":admin_password})
         persisted=admin.call('/api/admin/dashboard')
         assert len(persisted['accounts'])==4 and len(persisted['peers'])==3 and len(persisted['files'])==1
-        print("PASS: H2 account, peer, file and transfer persistence after tracker restart",flush=True)
+        print("PASS: MySQL account, peer, file and transfer persistence after tracker restart",flush=True)
         # Restore test sessions for optional visual inspection.
         login_peer(apis[1],2);login_peer(apis[2],3)
         result={"result":"PASS","size":len(payload),"sha256":file_id,"sources":completed["sourceBytes"],

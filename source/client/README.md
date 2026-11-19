@@ -1,31 +1,69 @@
-# PeerMesh Client / Peer
+# PeerMesh Client (Peer)
 
-Mỗi instance vừa tải vừa gửi chunk qua TCP. Java 17 + Spring Boot cung cấp web cục bộ, gọi tracker, tải song song và lưu checkpoint.
+Module nút mạng ngang hàng của hệ thống PeerMesh. Mỗi tiến trình hoạt động độc lập, vừa đóng vai trò chia sẻ file (Seeder) vừa tải file về máy (Leecher) trực tiếp qua kết nối Socket TCP với các peer khác.
 
-Hướng dẫn đầy đủ về build, cấu hình, chạy, API, giao thức và demo nằm ở [README chính](../../README.md).
+---
 
-Từ thư mục repository, sau khi build và chạy tracker:
+## 🛠️ Công nghệ cốt lõi
+
+* **Runtime & Framework:** Java 17, Spring Boot (chạy web server cục bộ và điều phối tiến trình)
+* **Truyền tải dữ liệu P2P:** Java Socket TCP đa luồng, giao thức nhị phân `PM01`
+* **Lưu trữ & Toàn vẹn:** Content-addressed storage, chunk $256\text{ KiB}$, mã băm SHA-256, Checkpoint JSON
+* **Giao tiếp thời gian thực:** WebSocket `/ws/peer` cập nhật dữ liệu trực tiếp lên trình duyệt
+
+---
+
+## ⚡ Chức năng chính
+
+* **Tải file đa luồng & đa nguồn:** Chia tải song song từ nhiều peer seeder (4 download workers / file, tối đa 2 file đồng thời), ưu tiên phần hiếm (rarest-first).
+* **TCP Server chia sẻ chunk:** Lắng nghe kết nối TCP với 4 upload workers; tự động đối soát vé tải bảo mật ($60\text{s}$) với Tracker trước khi gửi dữ liệu.
+* **Toàn vẹn & Phục hồi:** Kiểm tra mã băm SHA-256 cho từng chunk và toàn file; tự động lưu checkpoint để tạm dừng hoặc tiếp tục tải (resume) sau khi khởi động lại.
+* **Điều tiết băng thông (Rate Limiter):** Cài đặt giới hạn tốc độ Upload / Download theo KiB/s áp dụng ngay lập tức cho các luồng TCP.
+* **Phòng chia sẻ riêng tư (Shared Rooms):** Tạo nhóm chia sẻ có mật khẩu, duyệt yêu cầu tham gia và tải file nội bộ nhóm.
+* **Phòng thí nghiệm P2P (Lab):** Biểu đồ tốc độ Live (120 mẫu), đo đạc so sánh hiệu năng tải 1 nguồn vs đa nguồn, giả lập lỗi mạng (nguồn chậm, ngắt socket, chunk sai băm) và tự động chuyển nguồn.
+* **Tích hợp kiểm tra VirusTotal:** Seeder chủ động bật quyền cho phép gửi file mẫu ($\le 32\text{ MiB}$) lên VirusTotal khi admin yêu cầu.
+* **Đồng bộ lệnh xóa tệp:** Nhận danh sách file bị thu hồi từ Tracker, tự động dừng phiên tải và dọn dẹp các bản chunk/blob cục bộ.
+
+---
+
+## 🚀 Khởi động nhanh
+
+Từ thư mục gốc dự án:
 
 ```powershell
+# Chạy Peer 1 (Web UI 8081, TCP Port 9001)
 powershell -ExecutionPolicy Bypass -File source/run.ps1 -Role peer -WebPort 8081 -TcpPort 9001
+
+# Chạy thêm Peer 2 trên cùng máy (Web UI 8082, TCP Port 9002)
+powershell -ExecutionPolicy Bypass -File source/run.ps1 -Role peer -WebPort 8082 -TcpPort 9002
 ```
 
-Mở http://127.0.0.1:8081. Đăng ký / đăng nhập, nhập IP máy chạy peer và chờ admin duyệt thiết bị. Mỗi instance cần cổng web, cổng TCP và profile riêng khi chạy cùng máy. Script cấp profile theo cổng web.
+* **Giao diện Web:** Mở trình duyệt tại [http://127.0.0.1:8081](http://127.0.0.1:8081).
+* **Đăng ký thiết bị:** Đăng nhập tài khoản, khai báo IP/Cổng TCP và chờ quản trị viên duyệt thiết bị trên Tracker.
+* **Dữ liệu cục bộ:** Mỗi instance phân biệt theo cổng web và lưu profile, file blobs, checkpoint độc lập tại thư mục `source/data/peer-<PORT>`.
 
-Mã nguồn: src/main/java/vn/edu/p2p/client/; web: src/main/resources/static/; checkpoint test: src/test/java/; E2E: src/test/resources/e2e.py.
+---
 
-Package Java: `controller/`, `service/`, `repository/`, `storage/`, `model/`, `dto/request/`, `dto/response/`, `mapper/`, `config/`, `websocket/`, `exception/`; thêm `network/` cho TCP và HTTP client.
+## 🧩 Cấu trúc mã nguồn
 
-Giao diện nhận snapshot trực tiếp qua `/ws/peer`; HTTP polling chỉ dùng dự phòng khi WebSocket mất kết nối.
+```text
+source/client/
+├── src/main/java/vn/edu/p2p/client/
+│   ├── controller/      # REST API phục vụ giao diện web cục bộ
+│   ├── service/         # Nghiệp vụ tải/gửi chunk, phòng chia sẻ, lab, quản lý file
+│   ├── network/         # TCP Server (upload), TCP Client (download) và HTTP Gateway
+│   ├── storage/         # Quản lý đọc/ghi disk, profile, checkpoint JSON và khóa file
+│   ├── repository/      # Quản lý dữ liệu bộ nhớ (Profile, Library, DownloadJob, Events)
+│   ├── websocket/       # Đẩy snapshot hoạt động peer qua /ws/peer
+│   └── dto/             # Đối tượng dữ liệu vào/ra API
+└── src/main/resources/
+    ├── application.properties
+    └── static/          # Giao diện người dùng Web (6 tab: Khám phá, Phiên tải, Thư viện, Phòng, Lab, Hoạt động)
+```
 
-Trong **Phiên tải của tôi**, bấm **Nguồn từng chunk** để xem phần nào nhận từ peer nào, tài khoản nguồn, địa chỉ TCP và thời điểm nhận. Lịch sử được lưu sau khi chunk đã qua kiểm tra SHA-256, giữ lại sau khi hoàn tất và khởi động lại peer. Bảng hiển thị 100 phần mỗi trang, đánh số từ 1. Các phiên tải cũ không có lịch sử sẽ ghi rõ thay vì suy đoán nguồn. API đọc lịch sử: `GET /api/downloads/{id}/chunks` (cần đăng nhập).
+---
 
-Mục **Phòng thí nghiệm** có sơ đồ kết nối TCP tại peer, biểu đồ tốc độ 120 mẫu, phép so sánh một nguồn / nhiều nguồn qua TCP và mô phỏng nguồn chậm / ngắt / sai hash có tự hết hạn. Cách đo, API và kịch bản demo nằm trong mục Phòng thí nghiệm P2P của README chính.
+## 🔗 Liên kết liên quan
 
-Controller gọi trực tiếp service chức năng được Spring quản lý bằng `@Service`, nhận DTO trong `dto/request/` và trả DTO trong `dto/response/`. Các tên trường JSON và endpoint được giữ nguyên.
-
-Package `repository/` được chia theo dữ liệu: `PeerProfileRepository`, `LibraryRepository`, `DownloadJobRepository`, `PeerEventRepository`. `storage/PeerStorage` quản lý đọc/ghi file, khóa profile và khôi phục checkpoint. Service cập nhật qua repository và gọi `saveCheckpoint()` ở cùng các thời điểm như trước; giao diện và định dạng dữ liệu được giữ nguyên.
-
-Xem [hướng dẫn cấu trúc dự án](../../ARCHITECTURE.md). Giao diện được chia theo trạng thái, xác thực, API, realtime, view và sự kiện trong `src/main/resources/static/js/`; `app.js` là file khởi động được nạp cuối.
-
-`PeerDeletionService` nhận lệnh xóa toàn mạng từ tracker. `PeerStorage` lưu `deletedFiles` trong checkpoint, chỉ xóa đường dẫn được định danh bằng SHA-256 trong profile; file gốc bên ngoài profile được giữ nguyên. Peer offline xử lý khi kết nối và đăng nhập lại.
+* Hướng dẫn tổng thể dự án: [README.md](../../README.md)
+* Thiết kế luồng xử lý chi tiết: [ARCHITECTURE.md](../../ARCHITECTURE.md)

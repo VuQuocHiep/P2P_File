@@ -24,7 +24,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class LegacyRegistryStartupTest {
     @Test
     void migratesExistingDatabaseAndKeepsDomainUpdatesAfterRestart() throws Exception {
-        String url = "jdbc:h2:mem:migration-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1";
+        String database = "peermesh_test_migration_" + UUID.randomUUID().toString().replace("-", "");
+        String url = TestDatabase.url(database);
         var snapshot = new Snapshot();
         snapshot.accounts.put(
                 "admin",
@@ -45,10 +46,11 @@ class LegacyRegistryStartupTest {
         peer.lastSeen = System.currentTimeMillis();
         snapshot.peers.put(peer.id, peer);
         String payload = new ObjectMapper().writeValueAsString(snapshot);
-        try (var connection = DriverManager.getConnection(url, "sa", "")) {
+        try (var connection =
+                DriverManager.getConnection(url, TestDatabase.username(), TestDatabase.password())) {
             connection
                     .createStatement()
-                    .execute("CREATE TABLE registry (id INT PRIMARY KEY, payload CLOB NOT NULL)");
+                    .execute("CREATE TABLE registry (id INT PRIMARY KEY, payload LONGTEXT NOT NULL)");
             try (var statement =
                     connection.prepareStatement("INSERT INTO registry (id,payload) VALUES (1,?)")) {
                 statement.setString(1, payload);
@@ -58,8 +60,9 @@ class LegacyRegistryStartupTest {
         String[] args = {
             "--server.port=0",
             "--spring.datasource.url=" + url,
-            "--spring.datasource.username=sa",
-            "--spring.datasource.password=",
+            "--spring.datasource.username=" + TestDatabase.username(),
+            "--spring.datasource.password=" + TestDatabase.password(),
+            "--spring.jpa.hibernate.ddl-auto=update",
             "--peermesh.admin.username=admin",
             "--peermesh.admin.password=test-admin-secret-2026"
         };
@@ -108,8 +111,12 @@ class LegacyRegistryStartupTest {
                         () -> app.getBean(TrackerAuthService.class).me(oldToken));
             }
         } finally {
-            try (var connection = DriverManager.getConnection(url, "sa", "")) {
-                connection.createStatement().execute("SHUTDOWN");
+            try (var connection =
+                    DriverManager.getConnection(
+                            TestDatabase.serverUrl(),
+                            TestDatabase.username(),
+                            TestDatabase.password())) {
+                connection.createStatement().execute("DROP DATABASE IF EXISTS " + database);
             }
         }
     }

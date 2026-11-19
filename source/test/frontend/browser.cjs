@@ -81,6 +81,21 @@ async function fixture(role) {
     chunks: index ? [0, 1] : [0],
     scanConsent: false,
   }));
+  const rooms = [
+    {
+      id: 'demo-room',
+      name: 'Phòng của Bob',
+      owner: 'bob',
+      mine: false,
+      membership: null,
+      hasPassword: true,
+      members: 2,
+      pendingRequests: 0,
+      files: 1,
+      created: 123,
+      status: 'ACTIVE',
+    },
+  ];
 
   function snapshot() {
     const user = {
@@ -104,6 +119,7 @@ async function fixture(role) {
           },
         ],
         files: files.map((file) => ({ ...file, scanStage })),
+        rooms,
         transfers: [],
         audit: [],
       };
@@ -193,6 +209,36 @@ async function fixture(role) {
           files.filter((file) => file.manifest.name.toLowerCase().includes(query.toLowerCase())),
         );
       }
+      if (url.pathname === '/api/rooms' && request.method === 'GET') return send(rooms);
+      if (url.pathname === '/api/rooms' && request.method === 'POST') {
+        const room = {
+          id: body.id || 'alice-room',
+          name: body.name,
+          owner: 'alice',
+          mine: true,
+          membership: 'OWNER',
+          hasPassword: Boolean(body.password),
+          members: 1,
+          pendingRequests: 0,
+          files: 0,
+          created: Date.now(),
+          status: 'ACTIVE',
+        };
+        rooms.push(room);
+        return send(room);
+      }
+      if (url.pathname.endsWith('/join'))
+        return send({
+          id: url.pathname.split('/')[3],
+          name: 'Phòng demo',
+          owner: 'bob',
+          mine: false,
+          membership: 'PENDING',
+          hasPassword: false,
+          members: 1,
+          files: 0,
+        });
+      if (/\/api\/rooms\/[^/]+\/(files|requests|members)$/.test(url.pathname)) return send([]);
       if (url.pathname.endsWith('/sources'))
         return send([
           {
@@ -551,6 +597,52 @@ async function run() {
     );
     await page.locator('[data-key="job-2"] [data-action="pause"]').click();
     await page.locator('[data-key="job-2"] [data-action="resume"]').waitFor();
+
+    // A control named "id" shadows form.id, so the room forms must still stay on the page.
+    const roomUrl = page.url();
+    await page.locator('[data-tab="rooms"]').click();
+    await page.locator('#room-name').waitFor();
+    let roomText = await page.locator('#content').textContent();
+    assert.ok(roomText.includes('Phòng đang mở'), 'other rooms must be discoverable');
+    assert.ok(roomText.includes('Phòng của Bob'));
+    await page.locator('#room-name').fill('Nhóm học tập');
+    await page.locator('button[data-request-key="room-create"]').click();
+    await page.locator('#room-detail').waitFor();
+    roomText = await page.locator('#room-detail').textContent();
+    assert.ok(roomText.includes('Nhóm học tập'), 'the owner lands in the new room');
+    assert.ok(roomText.includes('Xoá phòng'), 'the owner sees the room controls');
+    assert.equal(page.url(), roomUrl, 'creating a room must not navigate away');
+    assert.equal(
+      peer.calls.filter((call) => call.path === '/api/rooms' && call.method === 'POST').length,
+      1,
+    );
+    assert.equal(
+      peer.calls.find((call) => call.path === '/api/rooms' && call.method === 'POST').body.name,
+      'Nhóm học tập',
+    );
+    await page.locator('[data-action="room-back"]').click();
+    await page.locator('#room-create-form').waitFor();
+    assert.ok((await page.locator('#content').textContent()).includes('Nhóm học tập'));
+    await page.locator('#join-room-id').fill('demo');
+    const joinRequest = page.waitForRequest(
+      (request) => request.url().includes('/api/rooms/demo/join'),
+    );
+    await page.locator('button[data-request-key="room-join"]').click();
+    await joinRequest;
+    assert.equal(page.url(), roomUrl, 'joining a room must not navigate away');
+    page.once('dialog', (dialog) => dialog.accept('secret-1'));
+    const cardJoin = page.waitForRequest(
+      (request) => request.url().includes('/api/rooms/demo-room/join'),
+    );
+    await page.locator('[data-action="room-join-card"][data-room="demo-room"]').click();
+    await cardJoin;
+    assert.equal(
+      peer.calls.find(
+        (call) => call.path === '/api/rooms/demo-room/join' && call.method === 'POST',
+      ).body.password,
+      'secret-1',
+    );
+    assert.equal(page.url(), roomUrl, 'joining from the list must not navigate away');
     await page.locator('#logout').click();
     await page.locator('#login').waitFor({ state: 'visible' });
 
@@ -562,6 +654,8 @@ async function run() {
     await control.locator('#password').fill('test-password');
     await control.locator('#login-form button[type="submit"]').click();
     await control.locator('#app').waitFor({ state: 'visible' });
+    await control.locator('[data-tab="rooms"]').click();
+    assert.ok((await control.locator('#content').textContent()).includes('Phòng của Bob'));
     await control.locator('[data-tab="files"]').click();
     await control.locator('details summary').first().click();
     await waitFrames(control);
@@ -602,7 +696,7 @@ async function run() {
     );
     assert.deepEqual(errors, []);
     console.log(
-      'PASS: peer registration/login/search/download controls/history/sources/sharing/consent/upload/lab/logout; admin login/details/scan/moderation/delete/logout; live focus and request locks.',
+      'PASS: peer registration/login/search/download controls/history/sources/sharing/consent/upload/lab/rooms/logout; admin login/details/scan/moderation/delete/logout; live focus and request locks.',
     );
   } finally {
     await browser?.close();

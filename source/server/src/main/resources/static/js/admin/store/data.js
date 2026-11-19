@@ -1,5 +1,5 @@
 import { $ } from '/assets/js/dom.js';
-import { adminApi } from './api.js';
+import { adminApi } from '../api/index.js';
 
 export function createAdminData({ model, render, showLogin, client = adminApi }) {
   let generation = 0;

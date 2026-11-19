@@ -5,7 +5,7 @@ const { createModuleLoader } = require('../../../../test/frontend/modules.cjs');
 async function renderHistory(history, chunks = [0, 1], totals = { 'Source A · peer-a': 524288 }) {
   const load = createModuleLoader();
   const { renderChunkHistory } = await load(
-    'client/src/main/resources/static/js/peer/dialogs/chunk-history.js',
+    'client/src/main/resources/static/js/peer/components/dialogs/chunk-history.js',
   );
   return renderChunkHistory(
     { id: 'job-a', fileId: 'file-a', name: '<sample>.bin', sourceBytes: totals },
