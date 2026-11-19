@@ -80,7 +80,7 @@ test('failed priority updates retain the snapshot and release the job for retry'
 
 test('downloads display active files then queue positions, priorities and paused history', async () => {
   const f = await fixture();
-  const { downloads } = await f.load(peer + 'views/downloads.js');
+  const { downloads } = await f.load(peer + 'pages/downloads.js');
   const job = (id, status, queuePosition = 0) => ({
     id,
     fileId: id,

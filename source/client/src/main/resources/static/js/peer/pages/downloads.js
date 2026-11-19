@@ -1,5 +1,5 @@
 import { UI, esc, bytes } from '/assets/js/ui.js';
-import { ready } from '../state.js';
+import { ready } from '../store/state.js';
 
 export function downloads(state) {
   if (!state.jobs.length)

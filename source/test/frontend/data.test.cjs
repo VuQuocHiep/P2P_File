@@ -22,7 +22,7 @@ function documentStub() {
       if (!nodes.has(selector))
         nodes.set(selector, {
           textContent: '',
-          classList: { add() {}, remove() {}, contains: () => false },
+          classList: { add() { }, remove() { }, contains: () => false },
         });
       return nodes.get(selector);
     },
@@ -49,7 +49,7 @@ async function peerFixture(client) {
     showLogin() {
       logins++;
     },
-    showApp() {},
+    showApp() { },
   });
   return {
     model,
@@ -190,7 +190,7 @@ test('admin ignores an obsolete dashboard error after a live snapshot has arrive
   let logins = 0;
   const data = createAdminData({
     model,
-    render() {},
+    render() { },
     showLogin() {
       logins++;
     },
@@ -213,8 +213,8 @@ test('admin dashboard response after logout cannot replace data from the next se
   const pending = deferred();
   const data = createAdminData({
     model,
-    render() {},
-    showLogin() {},
+    render() { },
+    showLogin() { },
     client: { dashboard: () => pending.promise },
   });
   const request = data.refresh();
@@ -230,7 +230,7 @@ test('closing a dialog invalidates its in-flight response', async () => {
   const pending = deferred();
   const fixture = await peerFixture({});
   fixture.model.snapshot.library = [];
-  const { createFileDialogs } = await fixture.load(peer + 'dialogs/sources.js');
+  const { createFileDialogs } = await fixture.load(peer + 'components/dialogs/sources.js');
   const dialogs = createFileDialogs({
     model: fixture.model,
     client: { sources: () => pending.promise },

@@ -1,7 +1,7 @@
 import { $ } from '/assets/js/dom.js';
 import { UI } from '/assets/js/ui.js';
-import { applyState } from './state.js';
-import { peerApi } from './api.js';
+import { applyState } from '../store/state.js';
+import { peerApi } from '../api/index.js';
 
 export function createPeerAuth({ model, live, data, render, requests, dialogs, client = peerApi }) {
   function switchMode(value) {

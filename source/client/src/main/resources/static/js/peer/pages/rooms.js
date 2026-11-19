@@ -1,5 +1,5 @@
 import { UI, esc, bytes } from '/assets/js/ui.js';
-import { ready } from '../state.js';
+import { ready } from '../store/state.js';
 
 const ID_PATTERN = '[a-zA-Z0-9][a-zA-Z0-9_-]{2,23}';
 

@@ -1,15 +1,15 @@
 import { $ } from '/assets/js/dom.js';
 import { UI, initializeUI } from '/assets/js/ui.js';
 import { Requests } from '/assets/js/requests.js';
-import { createPeerState } from './state.js';
-import { createPeerRenderer } from './views/page.js';
-import { createPeerData } from './data.js';
-import { createPeerChannel } from './realtime.js';
-import { createPeerAuth } from './auth.js';
+import { createPeerState } from './store/state.js';
+import { createPeerRenderer } from './layout/page.js';
+import { createPeerData } from './store/data.js';
+import { createPeerChannel } from './utils/realtime.js';
+import { createPeerAuth } from './utils/auth.js';
 import { createDownloadActions } from './actions/downloads.js';
 import { createLibraryActions } from './actions/library.js';
 import { createLabActions } from './actions/lab.js';
-import { createFileDialogs } from './dialogs/sources.js';
+import { createFileDialogs } from './components/dialogs/sources.js';
 import { createBandwidthActions } from './actions/bandwidth.js';
 import { createRoomActions } from './actions/rooms.js';
 

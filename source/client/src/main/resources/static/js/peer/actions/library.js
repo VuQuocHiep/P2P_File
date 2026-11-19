@@ -1,6 +1,6 @@
 import { $ } from '/assets/js/dom.js';
 import { UI } from '/assets/js/ui.js';
-import { peerApi } from '../api.js';
+import { peerApi } from '../api/index.js';
 
 export function createLibraryActions({ model, data, requests, client = peerApi }) {
   async function upload(form) {

@@ -1,5 +1,5 @@
 import { UI } from '/assets/js/ui.js';
-import { peerApi } from '../api.js';
+import { peerApi } from '../api/index.js';
 
 export function createRoomActions({ model, data, requests, client = peerApi }) {
   async function create(form) {
