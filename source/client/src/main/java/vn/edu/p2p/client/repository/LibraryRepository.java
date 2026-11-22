@@ -30,6 +30,7 @@ public class LibraryRepository {
     }
 
     public void save(String fileId, Entry entry) {
+        storage.state().library.remove(fileId);
         storage.state().library.put(fileId, entry);
     }
 

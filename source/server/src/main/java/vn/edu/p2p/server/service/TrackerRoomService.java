@@ -330,7 +330,7 @@ public class TrackerRoomService {
                 AccountEntity a = access.account(token, true);
                 RoomEntity room = room(roomId);
                 requireMember(a.username, room.id);
-                return context.files.findByRoomIdOrderByPositionAsc(room.id).stream()
+                return context.files.findByRoomIdOrderByPositionDesc(room.id).stream()
                         .map(f -> fileMapper.toResponse(f, access.onlineSources(f)))
                         .toList();
             } catch (Exception | Error failure) {

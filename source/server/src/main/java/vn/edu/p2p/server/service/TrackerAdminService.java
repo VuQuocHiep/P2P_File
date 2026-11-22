@@ -55,7 +55,7 @@ public class TrackerAdminService {
                         context.peers.findAllByOrderByPositionAsc().stream()
                                 .map(p -> peerMapper.toResponse(p, access.online(p)))
                                 .toList(),
-                        context.files.findAllByOrderByPositionAsc().stream()
+                        context.files.findAllByOrderByPositionDesc().stream()
                                 .map(f -> fileMapper.toResponse(f, access.onlineSources(f)))
                                 .toList(),
                         roomService.adminRooms(token),

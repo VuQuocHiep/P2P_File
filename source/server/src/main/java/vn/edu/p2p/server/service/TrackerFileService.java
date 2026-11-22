@@ -121,7 +121,7 @@ public class TrackerFileService {
             try {
                 AccountEntity account = access.account(token, true);
                 String q = query == null ? "" : query.toLowerCase(Locale.ROOT);
-                return context.files.findAllByOrderByPositionAsc().stream()
+                return context.files.findAllByOrderByPositionDesc().stream()
                         .filter(
                                 f ->
                                         "APPROVED".equals(f.status)

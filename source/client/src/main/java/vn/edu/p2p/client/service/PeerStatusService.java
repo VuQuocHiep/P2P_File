@@ -58,7 +58,9 @@ public class PeerStatusService {
                             2,
                             bandwidthService.settings());
             var library = new ArrayList<LibraryResponse>();
-            for (Entry e : context.library.findAll()) library.add(libraryMapper.toResponse(e));
+            var entries = new ArrayList<>(context.library.findAll());
+            Collections.reverse(entries);
+            for (Entry e : entries) library.add(libraryMapper.toResponse(e));
             var jobs = new ArrayList<JobResponse>();
             var positions = new HashMap<String, Integer>();
             var queued = context.jobs.findQueued();
