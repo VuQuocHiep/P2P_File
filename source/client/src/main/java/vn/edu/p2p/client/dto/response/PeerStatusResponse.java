@@ -28,8 +28,7 @@ public record PeerStatusResponse(
             boolean complete,
             boolean sharing,
             String catalogStatus,
-            List<Integer> chunks,
-            boolean scanConsent) {}
+            List<Integer> chunks) {}
 
     public record JobResponse(
             String id,

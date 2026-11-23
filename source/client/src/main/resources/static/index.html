@@ -6,7 +6,6 @@
     <title>PeerMesh · Không gian chia sẻ</title>
     <link rel="stylesheet" href="/assets/css/theme.css" />
     <link rel="stylesheet" href="/css/lab.css" />
-    <link rel="stylesheet" href="/css/peer.css" />
     <script type="module" src="/js/peer/app.js"></script>
   </head>
   <body>
@@ -74,7 +73,7 @@
             Kết nối vào mạng →
           </button>
           <div class="login-foot">
-            Tài khoản, thiết bị và file mới cần được quản trị viên duyệt. Dữ liệu của peer được lưu
+            Tài khoản và thiết bị cần được quản trị viên duyệt. File mới được quét tự động. Dữ liệu của peer được lưu
             trên máy này.
           </div>
         </form>
@@ -138,8 +137,8 @@
         </button>
       </div>
       <p class="section-note">
-        File được lưu ở peer này. Các máy khác nhận trực tiếp từng phần qua TCP sau khi quản trị
-        viên duyệt.
+        File được lưu ở peer này. Tracker tự quét VirusTotal; file sạch sẽ được duyệt để các máy
+        khác tải trực tiếp qua TCP.
       </p>
       <form id="upload-form">
         <div class="upload-zone">
@@ -148,12 +147,11 @@
           ><input type="file" name="file" aria-label="Chọn file chia sẻ" required />
           <div class="section-note">Tối đa 2 GiB · Tự tạo manifest và mã băm</div>
         </div>
-        <label class="scan-consent"
-          ><input type="checkbox" name="scanConsent" value="true" /><span
-            >Cho phép gửi file lên VirusTotal khi admin yêu cầu (tối đa 32 MiB). Nội dung có thể
-            được chia sẻ với đối tác và khách hàng VirusTotal.</span
-          ></label
-        ><button class="primary" type="submit" data-request-key="upload">
+        <p class="section-note">
+          Nếu VirusTotal chưa có báo cáo, hệ thống tự gửi nội dung file tối đa 32 MiB để quét.
+          Nội dung có thể được chia sẻ với đối tác và khách hàng VirusTotal.
+        </p>
+        <button class="primary" type="submit" data-request-key="upload">
           Tạo manifest & chia sẻ →
         </button>
         <p id="upload-status" class="section-note" role="status"></p>

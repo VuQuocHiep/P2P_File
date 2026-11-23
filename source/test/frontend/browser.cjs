@@ -79,7 +79,6 @@ async function fixture(role) {
     sharing: true,
     catalogStatus: 'APPROVED',
     chunks: index ? [0, 1] : [0],
-    scanConsent: false,
   }));
   const rooms = [
     {
@@ -279,9 +278,6 @@ async function fixture(role) {
       }
       if (url.pathname.endsWith('/sharing'))
         library.find((entry) => url.pathname.includes(entry.manifest.id)).sharing = body.enabled;
-      if (url.pathname.endsWith('/scan-consent'))
-        library.find((entry) => url.pathname.includes(entry.manifest.id)).scanConsent =
-          body.enabled;
       if (url.pathname === '/api/lab/benchmark') benchmark = { status: 'COMPLETED', results: [] };
       if (url.pathname.endsWith('/scan-request'))
         scanStage = request.method === 'DELETE' ? 'CANCELLED' : 'WAIT_SOURCE';
@@ -507,11 +503,6 @@ async function run() {
     await page.waitForFunction(
       () => document.querySelector('[data-action="sharing"]').dataset.enabled === 'true',
     );
-    page.once('dialog', (dialog) => dialog.accept());
-    await page.locator('[data-action="scan-consent"]').click();
-    await page.waitForFunction(
-      () => document.querySelector('[data-action="scan-consent"]').dataset.enabled === 'false',
-    );
     await page.locator('#open-upload').click();
     await page
       .locator('input[type="file"]')
@@ -696,7 +687,7 @@ async function run() {
     );
     assert.deepEqual(errors, []);
     console.log(
-      'PASS: peer registration/login/search/download controls/history/sources/sharing/consent/upload/lab/rooms/logout; admin login/details/scan/moderation/delete/logout; live focus and request locks.',
+      'PASS: peer registration/login/search/download controls/history/sources/sharing/upload/lab/rooms/logout; admin login/details/scan/moderation/delete/logout; live focus and request locks.',
     );
   } finally {
     await browser?.close();

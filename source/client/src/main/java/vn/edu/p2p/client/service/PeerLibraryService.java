@@ -31,7 +31,7 @@ public class PeerLibraryService {
             body.put("peerId", context.profile.getPeerId());
             body.put("manifest", entry.manifest);
             body.put("chunks", new ArrayList<>(entry.chunks));
-            body.put("scanConsent", entry.scanConsent);
+            body.put("scanConsent", entry.complete);
             if (entry.roomId != null && !entry.roomId.isBlank()) body.put("roomId", entry.roomId);
         }
         JsonNode result;
@@ -51,10 +51,6 @@ public class PeerLibraryService {
     }
 
     public UploadResponse upload(MultipartFile upload) throws Exception {
-        return upload(upload, false);
-    }
-
-    public UploadResponse upload(MultipartFile upload, boolean scanConsent) throws Exception {
         context.peerSessionService.ready();
         if (upload.isEmpty()) throw new IllegalArgumentException("Hãy chọn file có dữ liệu.");
         String name =
@@ -83,7 +79,6 @@ public class PeerLibraryService {
                             "File đang tải. Hãy tạm dừng trước khi thêm file này.");
                 AtomicFiles.move(temporary, context.storage.blob(manifest.id()));
                 previous.complete = true;
-                previous.scanConsent = scanConsent;
                 previous.sharing = true;
                 previous.chunks.clear();
                 for (int i = 0; i < manifest.hashes().size(); i++) previous.chunks.add(i);
@@ -92,7 +87,10 @@ public class PeerLibraryService {
                 context.storage.saveCheckpoint();
             }
             advertise(manifest.id());
-            return new UploadResponse("Đã chia sẻ. File mới cần quản trị viên duyệt.", manifest);
+            String message = manifest.size() <= 32L * 1024 * 1024
+                    ? "Đã chia sẻ. Tracker sẽ tự quét VirusTotal và tự duyệt nếu không có cảnh báo."
+                    : "Đã chia sẻ. File vượt 32 MiB nên tracker chỉ tra cứu báo cáo VirusTotal theo SHA-256.";
+            return new UploadResponse(message, manifest);
         } finally {
             Files.deleteIfExists(temporary);
         }
@@ -111,19 +109,6 @@ public class PeerLibraryService {
         }
         if (enabled) advertise(fileId);
         else context.tracker.call("DELETE", "/api/files/" + fileId + "/holders/" + peerId, null);
-    }
-
-    public void scanConsent(String fileId, boolean enabled) throws Exception {
-        context.peerSessionService.validId(fileId);
-        context.peerSessionService.ready();
-        synchronized (context.storage.monitor()) {
-            Entry entry = context.library.findByFileId(fileId);
-            if (entry == null) throw new IllegalArgumentException("File không tồn tại.");
-            entry.scanConsent = enabled;
-            context.events.append((enabled ? "Cho phép" : "Tắt cho phép") + " gửi VirusTotal: " + entry.manifest.name());
-            context.storage.saveCheckpoint();
-        }
-        advertise(fileId);
     }
 
     byte[] readChunk(ChunkRequest request) throws Exception {

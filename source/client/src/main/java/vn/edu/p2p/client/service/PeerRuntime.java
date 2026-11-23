@@ -36,7 +36,15 @@ public class PeerRuntime {
         context.peerMalwareService = malwareService;
         context.tcpServer =
                 new TcpChunkServer(
-                        context.tcpPort, context.delay, libraryService::readChunk,
+                        context.tcpPort, context.delay, request -> {
+                            var lock = sessionService.sessionLock(false);
+                            lock.lock();
+                            try {
+                                return libraryService.readChunk(request);
+                            } finally {
+                                lock.unlock();
+                            }
+                        },
                         context.uploadBandwidth);
         context.pulse.scheduleWithFixedDelay(sessionService::heartbeat, 2, 5, TimeUnit.SECONDS);
         context.telemetry.scheduleWithFixedDelay(labService::sampleNetwork, 1, 1, TimeUnit.SECONDS);

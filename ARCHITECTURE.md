@@ -44,8 +44,9 @@ Quá trình truyền tải dữ liệu P2P phân tách hoàn toàn giữa luồn
 
 ### 3. Luồng Kiểm duyệt & Quét Mã độc (VirusTotal)
 ```text
-Admin bấm Quét ──► Tracker tạo ScanJob ──► Báo Seeder qua Heartbeat/Lease
-Seeder (đã đồng ý) ──(Upload ≤ 32 MiB)──► Tracker ──► VirusTotal API ──► Trả kết quả về DB
+Peer chia sẻ file ──► Tracker tự tạo ScanJob ──► Báo Seeder qua Heartbeat/Lease
+Chưa có báo cáo SHA-256 ──► Seeder tự gửi file ≤ 32 MiB qua Tracker tới VirusTotal
+VirusTotal ──► Không có cảnh báo: tự duyệt / Có cảnh báo: chặn
 ```
 
 ---

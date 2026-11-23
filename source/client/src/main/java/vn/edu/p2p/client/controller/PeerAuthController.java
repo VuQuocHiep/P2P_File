@@ -33,7 +33,7 @@ public class PeerAuthController {
         PeerStatusResponse result = sessionService.login(body);
         var old = request.getSession(false);
         if (old != null) old.invalidate();
-        request.getSession(true).setAttribute("authenticated", true);
+        request.getSession(true).setAttribute(PeerSessionService.SESSION_ATTRIBUTE, sessionService.sessionId());
         return result;
     }
 
@@ -47,8 +47,7 @@ public class PeerAuthController {
 
     @GetMapping("/status")
     public PeerStatusView status(HttpServletRequest r) {
-        var s = r.getSession(false);
-        return s != null && Boolean.TRUE.equals(s.getAttribute("authenticated"))
+        return PeerRequestAuth.authenticated(r)
                 ? statusService.status()
                 : new AnonymousStatusResponse(false);
     }

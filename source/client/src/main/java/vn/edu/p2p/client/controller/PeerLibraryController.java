@@ -23,11 +23,10 @@ public class PeerLibraryController {
     }
 
     @PostMapping("/library")
-    public UploadResponse upload(@RequestParam("file") MultipartFile file,
-            @RequestParam(defaultValue = "false") boolean scanConsent, HttpServletRequest r)
+    public UploadResponse upload(@RequestParam("file") MultipartFile file, HttpServletRequest r)
             throws Exception {
         auth(r);
-        return service.upload(file, scanConsent);
+        return service.upload(file);
     }
 
     @PatchMapping("/library/{id}/sharing")
@@ -54,10 +53,4 @@ public class PeerLibraryController {
                 .body(new FileSystemResource(file.path()));
     }
 
-    @PatchMapping("/library/{id}/scan-consent")
-    public MessageResponse scanConsent(@PathVariable String id, @RequestBody Sharing b, HttpServletRequest r) throws Exception {
-        auth(r);
-        service.scanConsent(id, b.enabled());
-        return new MessageResponse(b.enabled() ? "Đã cho phép gửi file lên VirusTotal khi admin yêu cầu." : "Đã tắt quyền gửi file lên VirusTotal.");
-    }
 }

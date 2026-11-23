@@ -21,7 +21,7 @@ Module nút mạng ngang hàng của hệ thống PeerMesh. Mỗi tiến trình 
 * **Điều tiết băng thông (Rate Limiter):** Cài đặt giới hạn tốc độ Upload / Download theo KiB/s áp dụng ngay lập tức cho các luồng TCP.
 * **Phòng chia sẻ riêng tư (Shared Rooms):** Tạo nhóm chia sẻ có mật khẩu, duyệt yêu cầu tham gia và tải file nội bộ nhóm.
 * **Phòng thí nghiệm P2P (Lab):** Biểu đồ tốc độ Live (120 mẫu), đo đạc so sánh hiệu năng tải 1 nguồn vs đa nguồn, giả lập lỗi mạng (nguồn chậm, ngắt socket, chunk sai băm) và tự động chuyển nguồn.
-* **Tích hợp kiểm tra VirusTotal:** Seeder chủ động bật quyền cho phép gửi file mẫu ($\le 32\text{ MiB}$) lên VirusTotal khi admin yêu cầu.
+* **Tích hợp kiểm tra VirusTotal:** Khi chia sẻ file, tracker tra cứu báo cáo theo SHA-256. Nếu chưa có báo cáo, peer tự gửi file tối đa 32 MiB để quét. File không có cảnh báo sẽ tự được duyệt.
 * **Đồng bộ lệnh xóa tệp:** Nhận danh sách file bị thu hồi từ Tracker, tự động dừng phiên tải và dọn dẹp các bản chunk/blob cục bộ.
 
 ---
@@ -41,6 +41,7 @@ powershell -ExecutionPolicy Bypass -File source/run.ps1 -Role peer -WebPort 8082
 * **Giao diện Web:** Mở trình duyệt tại [http://127.0.0.1:8081](http://127.0.0.1:8081).
 * **Đăng ký thiết bị:** Đăng nhập tài khoản, khai báo IP/Cổng TCP và chờ quản trị viên duyệt thiết bị trên Tracker.
 * **Dữ liệu cục bộ:** Mỗi instance phân biệt theo cổng web và lưu profile, file blobs, checkpoint độc lập tại thư mục `source/data/peer-<PORT>`.
+* **Đổi tài khoản:** Đăng xuất rồi đăng nhập tài khoản khác trên cùng trang peer. Mỗi tài khoản có thư viện, tiến độ tải và mã thiết bị riêng. Tài khoản mới trên peer có thể cần quản trị viên duyệt thiết bị.
 
 ---
 

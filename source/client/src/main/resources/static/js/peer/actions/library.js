@@ -21,26 +21,15 @@ export function createLibraryActions({ model, data, requests, client = peerApi }
     });
   }
 
-  async function change(action, id, enabled) {
-    if (
-      action === 'scan-consent' &&
-      enabled &&
-      !window.confirm(
-        'Cho phép peer tự gửi nội dung file này qua server lên VirusTotal khi admin yêu cầu? Nội dung có thể được chia sẻ với đối tác và khách hàng VirusTotal. Chỉ bật nếu bạn có quyền chia sẻ file.',
-      )
-    )
-      return;
+  async function sharing(id, enabled) {
     const session = data.session;
     await requests.run(`library:${id}`, async () => {
-      const result =
-        action === 'sharing'
-          ? await client.sharing(id, enabled)
-          : await client.scanConsent(id, enabled);
+      const result = await client.sharing(id, enabled);
       if (session !== data.session || !model.snapshot?.user) return;
       UI.toast(result.message);
       await data.poll();
     });
   }
 
-  return { upload, change };
+  return { upload, sharing };
 }

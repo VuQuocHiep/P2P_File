@@ -320,12 +320,24 @@ public class PeerDownloadService {
             }
         } finally {
             workers.shutdownNow();
-            synchronized (context.storage.monitor()) {
-                context.downloadPools.remove(jobId);
-                context.running.remove(jobId);
-                dispatchQueued();
+            boolean interrupted = Thread.interrupted();
+            try {
+                while (!workers.isTerminated()) {
+                    try {
+                        workers.awaitTermination(1, TimeUnit.SECONDS);
+                    } catch (InterruptedException ignored) {
+                        interrupted = true;
+                    }
+                }
+                report(jobId);
+            } finally {
+                synchronized (context.storage.monitor()) {
+                    context.downloadPools.remove(jobId);
+                    context.running.remove(jobId);
+                    dispatchQueued();
+                }
+                if (interrupted) Thread.currentThread().interrupt();
             }
-            report(jobId);
         }
     }
 

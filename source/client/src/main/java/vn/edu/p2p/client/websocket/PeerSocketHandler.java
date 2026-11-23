@@ -24,8 +24,8 @@ public class PeerSocketHandler extends SnapshotSocket {
     public boolean allowed(HttpSession session) {
         try {
             return session != null
-                    && Boolean.TRUE.equals(session.getAttribute("authenticated"))
-                    && sessionService.loggedIn();
+                    && sessionService.ownsSession(
+                            session.getAttribute(PeerSessionService.SESSION_ATTRIBUTE));
         } catch (IllegalStateException e) {
             return false;
         }
@@ -33,9 +33,15 @@ public class PeerSocketHandler extends SnapshotSocket {
 
     @Override
     protected Object snapshot(WebSocketSession socket) {
-        if (!allowed((HttpSession) socket.getAttributes().get("httpSession")))
-            throw new SecurityException("Phiên peer hết hạn.");
-        return statusService.status();
+        var lock = sessionService.sessionLock(false);
+        lock.lock();
+        try {
+            if (!allowed((HttpSession) socket.getAttributes().get("httpSession")))
+                throw new SecurityException("Phiên peer hết hạn.");
+            return statusService.status();
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override

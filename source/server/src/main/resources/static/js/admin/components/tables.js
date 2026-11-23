@@ -14,9 +14,9 @@ export function controls(kind, id, status, admin = false, allowApproval = true) 
           data-status="APPROVED"
           ${allowApproval ? '' : 'disabled title="File có cảnh báo VirusTotal, không thể duyệt"'}
         >
-          Duyệt / mở
+          ${kind === 'peers' ? (status === 'BLOCKED' ? 'Mở khóa' : 'Duyệt') : 'Duyệt / mở'}
         </button>`
-      : ''}${status !== 'BLOCKED'
+      : ''}${status !== 'BLOCKED' && (kind !== 'peers' || status === 'APPROVED')
       ? /* HTML */ `<button
           class="small danger"
           data-action="moderate"
@@ -27,7 +27,7 @@ export function controls(kind, id, status, admin = false, allowApproval = true) 
         >
           ${kind === 'files' ? 'Ẩn file' : 'Khóa'}
         </button>`
-      : ''}${status === 'APPROVED'
+      : ''}${status === 'APPROVED' && kind !== 'peers'
       ? /* HTML */ `<button
           class="small ghost"
           data-action="moderate"

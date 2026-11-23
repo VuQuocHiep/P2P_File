@@ -13,6 +13,6 @@ public class LibraryMapper {
                 entry.complete,
                 entry.sharing,
                 entry.catalogStatus,
-                new ArrayList<>(entry.chunks), entry.scanConsent);
+                new ArrayList<>(entry.chunks));
     }
 }

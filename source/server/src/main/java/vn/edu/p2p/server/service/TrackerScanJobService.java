@@ -46,6 +46,7 @@ public class TrackerScanJobService {
         }
         f.malware = value;
         if (value.blocksApproval()) f.status = "BLOCKED";
+        else if (value.permitsApproval()) f.status = "APPROVED";
     }
 
     public MalwareReport request(String token, String id) {
@@ -63,6 +64,24 @@ public class TrackerScanJobService {
             report(f, MalwareReport.state("WAITING_LOOKUP", "Đã yêu cầu quét. Server sẽ tra báo cáo SHA-256 và tự yêu cầu peer gửi file nếu cần.", null));
             context.log(admin.username, "REQUEST_VIRUSTOTAL_SCAN", id);
             return f.malware;
+        });
+    }
+
+    /** Queue the first automatic scan when a peer advertises a file. */
+    public void requestAutomatic(String id, String actor) {
+        transaction(() -> {
+            var f = context.files.findFileById(id).orElse(null);
+            if (f == null || !"PENDING".equals(f.status) || f.scanStage != null || f.malware != null) return null;
+            f.scanStage = "LOOKUP";
+            f.scanRequestId = UUID.randomUUID().toString();
+            f.scanActor = actor;
+            f.scanNextAt = System.currentTimeMillis();
+            f.scanFailures = 0;
+            clearLease(f);
+            report(f, MalwareReport.state("WAITING_LOOKUP",
+                    "File được đưa vào hàng đợi quét VirusTotal tự động.", null));
+            context.log(actor, "AUTO_REQUEST_VIRUSTOTAL_SCAN", id);
+            return null;
         });
     }
 

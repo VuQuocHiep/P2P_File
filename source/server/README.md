@@ -19,7 +19,7 @@ Module máy chủ điều phối trung tâm của hệ thống PeerMesh. Quản 
 * **Kiểm duyệt danh mục file:** Quản lý metadata, mã băm SHA-256 từng chunk và toàn file.
 * **Cấp vé tải an toàn (Ticket):** Sinh vé tải có thời hạn $60\text{s}$ gắn với từng nguồn; seeder đối soát vé trước khi truyền chunk.
 * **Quản lý phòng chia sẻ (Shared Rooms):** Hỗ trợ tạo nhóm chia sẻ kín kèm mã phòng và mật khẩu bảo vệ.
-* **Quét mã độc (VirusTotal):** Tra cứu tự động mã băm SHA-256 và nhận file mẫu ($\le 32\text{ MiB}$) do seeder gửi lên khi admin yêu cầu.
+* **Quét mã độc (VirusTotal):** Tự tra cứu file mới theo SHA-256 và yêu cầu peer gửi nội dung tối đa 32 MiB nếu chưa có báo cáo. Tracker tự duyệt khi báo cáo hoàn tất mà không có cảnh báo.
 * **Giám sát mạng & Heartbeat:** Nhận tín hiệu sống của peer mỗi $5\text{s}$, tự động đánh dấu offline sau $20\text{s}$ không nhận được heartbeat.
 * **Đồng bộ lệnh xóa toàn mạng:** Thu hồi vé tải và lưu vết xóa (tombstone) bền vững để các peer tự dọn dẹp file.
 

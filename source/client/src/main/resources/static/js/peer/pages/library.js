@@ -5,7 +5,7 @@ export function library(state) {
   return state.library.length
     ? /* HTML */ `<section class="panel">
           ${UI.table(
-            ['File', 'Tiến độ lưu trữ', 'Danh mục', 'Chia sẻ', 'Quyền VirusTotal', 'Thao tác'],
+            ['File', 'Tiến độ lưu trữ', 'Danh mục', 'Chia sẻ', 'Thao tác'],
             state.library.map(
               (e) =>
                 /* HTML */ `<tr data-key="${esc(e.manifest.id)}">
@@ -26,9 +26,6 @@ export function library(state) {
                   <td>${UI.badge(e.catalogStatus)}</td>
                   <td>${UI.badge(e.sharing ? 'ONLINE' : 'OFFLINE')}</td>
                   <td>
-                    <span class="badge">${e.scanConsent ? 'Đã cho phép' : 'Chưa cho phép'}</span>
-                  </td>
-                  <td>
                     <div class="actions">
                       <button
                         class="small"
@@ -40,17 +37,6 @@ export function library(state) {
                       >
                         ${e.sharing ? 'Dừng chia sẻ' : 'Bật chia sẻ'}</button
                       >${e.complete
-                        ? /* HTML */ `<button
-                            class="small ghost"
-                            data-action="scan-consent"
-                            data-request-key="library:${e.manifest.id}"
-                            data-id="${e.manifest.id}"
-                            data-enabled="${!e.scanConsent}"
-                            ${!ready(state) ? 'disabled' : ''}
-                          >
-                            ${e.scanConsent ? 'Tắt quyền VirusTotal' : 'Cho phép VirusTotal'}
-                          </button>`
-                        : ''}${e.complete
                         ? /* HTML */ `<a href="/api/library/${e.manifest.id}/content"
                             >↓ Lưu file</a
                           >`

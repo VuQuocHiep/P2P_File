@@ -18,18 +18,21 @@ public class TrackerFileService {
     private final FileMapper fileMapper;
     private final PeerMapper peerMapper;
     private final TrackerRoomService roomService;
+    private final TrackerScanJobService scanJobs;
 
     public TrackerFileService(
             TrackerContext context,
             TrackerAccess access,
             FileMapper fileMapper,
             PeerMapper peerMapper,
-            TrackerRoomService roomService) {
+            TrackerRoomService roomService,
+            TrackerScanJobService scanJobs) {
         this.context = context;
         this.access = access;
         this.fileMapper = fileMapper;
         this.peerMapper = peerMapper;
         this.roomService = roomService;
+        this.scanJobs = scanJobs;
     }
 
     public FileResponse advertise(String token, Advertisement input) {
@@ -86,6 +89,8 @@ public class TrackerFileService {
                 else file.scanConsentPeers.remove(p.id);
                 p.lastSeen = System.currentTimeMillis();
                 file = context.files.save(file);
+                if (file.scanStage == null && file.malware == null)
+                    scanJobs.requestAutomatic(file.id, a.username);
                 return fileMapper.toResponse(file, access.onlineSources(file));
             } catch (Exception | Error failure) {
                 context.rollback(transaction);

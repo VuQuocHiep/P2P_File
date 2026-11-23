@@ -13,11 +13,28 @@ import vn.edu.p2p.client.exception.TrackerFailure;
 import vn.edu.p2p.client.mapper.TrackerResponseMapper;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 @Service
 public class PeerSessionService {
+    public static final String SESSION_ATTRIBUTE = "peerSessionId";
     private final PeerContext context;
     private final TrackerResponseMapper trackerResponseMapper;
+    private final ReentrantReadWriteLock sessionLock = new ReentrantReadWriteLock(true);
+    private volatile String sessionId;
+
+    public Lock sessionLock(boolean exclusive) {
+        return exclusive ? sessionLock.writeLock() : sessionLock.readLock();
+    }
+
+    public String sessionId() {
+        return sessionId;
+    }
+
+    public boolean ownsSession(Object id) {
+        return id instanceof String && id.equals(sessionId) && loggedIn();
+    }
 
     public PeerSessionService(PeerContext context, TrackerResponseMapper trackerResponseMapper) {
         this.context = context;
@@ -43,52 +60,94 @@ public class PeerSessionService {
                 password = input.password(),
                 name = input.name(),
                 host = input.host();
+        boolean changingAccount;
         synchronized (context.storage.monitor()) {
-            if (!context.profile.getOwner().isBlank()
-                    && !context.profile.getOwner().equals(username))
+            String owner = context.profile.getOwner();
+            changingAccount = !owner.isBlank() && !owner.equals(username);
+            if (changingAccount && (!context.running.isEmpty() || context.benchmarking.get()
+                    || (context.peerMalwareService != null && context.peerMalwareService.isBusy())))
                 throw new IllegalArgumentException(
-                        "Profile này thuộc "
-                                + context.profile.getOwner()
-                                + ". Dùng PEER_DATA khác cho tài khoản khác.");
+                        "Hãy chờ peer hoàn tất tác vụ đang chạy rồi đăng nhập tài khoản khác.");
         }
         JsonNode result =
                 context.tracker.call(
                         "POST",
                         "/api/auth/login",
                         Map.of("username", username, "password", password));
-        context.tracker.token(result.path("token").asText());
-        context.user = result.path("user");
-        context.peerDeletionService.synchronize();
         synchronized (context.storage.monitor()) {
+            if (changingAccount) context.storage.selectAccount(username);
+            sessionId = null;
             context.profile.update(username, name, host);
             context.storage.saveCheckpoint();
+            if (changingAccount) resetAccountRuntime();
         }
-        if ("APPROVED".equals(context.user.path("status").asText())) connectPeer();
-        else context.connection = "Tài khoản đang chờ duyệt";
-        context.peerDownloadService.dispatchQueued();
-        return context.peerStatusService.status();
+        revokeTrackerSession();
+        context.tracker.token(result.path("token").asText());
+        context.user = result.path("user");
+        context.peerStatus = "PENDING";
+        context.catalogSnapshot = context.json.createArrayNode();
+        try {
+            context.peerDeletionService.synchronize();
+            if ("APPROVED".equals(context.user.path("status").asText())) connectPeer();
+            else context.connection = "Tài khoản đang chờ duyệt";
+            PeerStatusResponse status = context.peerStatusService.status();
+            context.peerDownloadService.dispatchQueued();
+            sessionId = UUID.randomUUID().toString();
+            return status;
+        } catch (Exception failure) {
+            revokeTrackerSession();
+            context.user = null;
+            context.peerStatus = "PENDING";
+            throw failure;
+        }
+    }
+
+    private void revokeTrackerSession() {
+        if (!context.tracker.token().isBlank()) {
+            try {
+                context.tracker.call("POST", "/api/auth/logout", Map.of());
+            } catch (Exception ignored) {
+                // The old tracker session may already have expired.
+            }
+        }
+        context.tracker.token("");
+    }
+
+    private void resetAccountRuntime() {
+        context.uploadBandwidth.setLimit(context.profile.getUploadLimitKiB());
+        context.downloadBandwidth.setLimit(context.profile.getDownloadLimitKiB());
+        context.tcpServer.fault("NORMAL", 0, 1);
+        context.speedBytes.clear();
+        context.speedStart.clear();
+        context.benchmark = Map.of("status", "IDLE");
+        synchronized (context.samples) {
+            context.links.clear();
+            context.recentLinks.clear();
+            context.sourceReceived.clear();
+            context.sourceChunks.clear();
+            context.sourcePrevious.clear();
+            context.sourceStats.clear();
+            context.samples.clear();
+        }
     }
 
     void connectPeer() throws Exception {
+        String id = peerId();
         try {
-            registerPeer();
+            registerPeer(id);
         } catch (TrackerFailure failure) {
-            // A stored peer id outlives the tracker row: the database can be recreated, and the
-            // id can also belong to another account. The tracker answers 403 in both cases, so
-            // forget the stale id and register this device again instead of failing every login.
-            if (failure.status != 403 || peerId().isBlank()) throw failure;
-            forgetPeerId();
-            registerPeer();
+            if (id.isBlank() || !peerIdRejected(failure)) throw failure;
+            registerPeer("");
         }
     }
 
-    private void registerPeer() throws Exception {
+    private void registerPeer(String id) throws Exception {
         Map<String, Object> body;
         synchronized (context.storage.monitor()) {
             body =
                     Map.of(
                             "id",
-                            context.profile.getPeerId(),
+                            id,
                             "name",
                             context.profile.getName(),
                             "host",
@@ -97,10 +156,14 @@ public class PeerSessionService {
                             context.tcpPort);
         }
         JsonNode result = context.tracker.call("POST", "/api/peers", body);
+        String returnedId = result.path("id").asText();
+        if (returnedId.isBlank()) throw new IOException("Tracker chưa trả về mã thiết bị.");
         synchronized (context.storage.monitor()) {
-            context.profile.updatePeerId(result.path("id").asText());
-            context.events.append("Đăng ký peer " + context.profile.getName());
-            context.storage.saveCheckpoint();
+            if (!returnedId.equals(context.profile.getPeerId())) {
+                context.profile.updatePeerId(returnedId);
+                context.events.append("Đăng ký peer " + context.profile.getName());
+                context.storage.saveCheckpoint();
+            }
         }
         context.peerStatus = result.path("status").asText();
         context.connection = "Đã kết nối tracker";
@@ -112,11 +175,9 @@ public class PeerSessionService {
         }
     }
 
-    private void forgetPeerId() {
-        synchronized (context.storage.monitor()) {
-            context.profile.updatePeerId("");
-            context.storage.saveCheckpoint();
-        }
+    private boolean peerIdRejected(TrackerFailure failure) {
+        return failure.status == 403
+                && "Peer không thuộc tài khoản hoặc chưa được duyệt.".equals(failure.getMessage());
     }
 
     /** Reports progress and re-registers once when the tracker no longer knows this peer. */
@@ -124,9 +185,8 @@ public class PeerSessionService {
         try {
             return context.tracker.call("POST", "/api/peers/heartbeat", Map.of("peerId", id));
         } catch (TrackerFailure failure) {
-            if (failure.status != 403) throw failure;
-            forgetPeerId();
-            connectPeer();
+            if (!peerIdRejected(failure)) throw failure;
+            registerPeer("");
             return context.tracker.call(
                     "POST", "/api/peers/heartbeat", Map.of("peerId", peerId()));
         }
@@ -140,17 +200,24 @@ public class PeerSessionService {
                     .forEach(j -> j.status = "PAUSED");
             context.storage.saveCheckpoint();
         }
-        try {
-            context.tracker.call("POST", "/api/auth/logout", Map.of());
-        } catch (Exception ignored) {
-        }
-        context.tracker.token("");
+        sessionId = null;
+        revokeTrackerSession();
         context.user = null;
         context.catalogSnapshot = context.json.createArrayNode();
         context.connection = "Đã đăng xuất";
     }
 
     void heartbeat() {
+        Lock lock = sessionLock(false);
+        lock.lock();
+        try {
+            heartbeatCurrentAccount();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private void heartbeatCurrentAccount() {
         context.peerDeletionService.retryPending();
         if (context.tracker.token().isBlank() || context.closing) return;
         try {

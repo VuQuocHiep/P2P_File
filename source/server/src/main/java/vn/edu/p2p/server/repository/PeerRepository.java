@@ -10,6 +10,9 @@ import vn.edu.p2p.server.entity.PeerEntity;
 public interface PeerRepository extends JpaRepository<PeerEntity, String> {
     Optional<PeerEntity> findPeerById(String id);
 
+    Optional<PeerEntity> findFirstByOwnerAndHostAndPortOrderByPositionAsc(
+            String owner, String host, int port);
+
     List<PeerEntity> findAllByOrderByPositionAsc();
 
     Optional<PeerEntity> findFirstByOrderByPositionDesc();

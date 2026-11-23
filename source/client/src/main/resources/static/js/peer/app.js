@@ -42,10 +42,10 @@ function render() {
   requests.sync();
 }
 
-for (const key of ['username', 'name', 'host']) {
-  const value = localStorage.getItem('peermesh-' + key);
-  if (value) $('#' + key).value = value;
-}
+const previousUsername = localStorage.getItem('peermesh-username');
+if (previousUsername) $('#username').value = previousUsername;
+auth.restoreDevice();
+$('#username').addEventListener('change', auth.restoreDevice);
 
 $('#login-form').addEventListener('submit', (event) => {
   event.preventDefault();
@@ -138,8 +138,7 @@ document.addEventListener('click', async (event) => {
     else if (action === 'room-delete') await room.destroy(button.dataset.room, button.dataset.name);
     else if (action === 'room-share') await room.share(button.dataset.room);
     else if (['download', 'pause', 'resume'].includes(action)) await download(action, id);
-    else if (['sharing', 'scan-consent'].includes(action))
-      await library.change(action, id, button.dataset.enabled === 'true');
+    else if (action === 'sharing') await library.sharing(id, button.dataset.enabled === 'true');
     else if (action === 'sources') await dialogs.sources(id);
     else if (action === 'chunk-history')
       await dialogs.chunkHistory(id, Number(button.dataset.page || 0));

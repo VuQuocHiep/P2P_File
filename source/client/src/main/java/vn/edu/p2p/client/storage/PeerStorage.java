@@ -16,16 +16,18 @@ import java.util.*;
 /** Profile state and verified chunk checkpoints survive application restarts. */
 @Component
 public class PeerStorage implements AutoCloseable {
-    private final Path root;
-    private final State state;
+    private final Path baseRoot;
+    private Path root;
+    private State state;
+    private String originalOwner;
     private final ObjectMapper json;
-    private final Path stateFile;
     private final FileChannel lockChannel;
     private final FileLock profileLock;
 
     public PeerStorage(@Value("${peer.data}") String path, ObjectMapper json) throws IOException {
         this.json = json;
-        root = Path.of(path).toAbsolutePath().normalize();
+        baseRoot = Path.of(path).toAbsolutePath().normalize();
+        root = baseRoot;
         Files.createDirectories(root.resolve("blobs"));
         Files.createDirectories(root.resolve("chunks"));
         lockChannel =
@@ -43,13 +45,41 @@ public class PeerStorage implements AutoCloseable {
             lockChannel.close();
             throw new IOException("PEER_DATA đang được một peer khác sử dụng.");
         }
-        stateFile = root.resolve("profile.json");
-        state =
-                Files.exists(stateFile)
-                        ? json.readValue(stateFile.toFile(), State.class)
-                        : new State();
+        state = loadCheckpoint();
         restoreCheckpoint();
         saveCheckpoint();
+    }
+
+    private State loadCheckpoint() throws IOException {
+        Path stateFile = root.resolve("profile.json");
+        return Files.exists(stateFile)
+                        ? json.readValue(stateFile.toFile(), State.class)
+                        : new State();
+    }
+
+    /** Keep the original profile at its existing path and isolate additional accounts. */
+    public synchronized void selectAccount(String username) throws IOException {
+        if (username.equals(state.owner)) return;
+        Path target = originalOwner.isBlank() || username.equals(originalOwner)
+                ? baseRoot
+                : baseRoot.resolve("accounts").resolve(
+                        Manifest.hash(username.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        if (target.equals(root)) return;
+        Path previousRoot = root;
+        State previousState = state;
+        try {
+            root = target;
+            Files.createDirectories(root.resolve("blobs"));
+            Files.createDirectories(root.resolve("chunks"));
+            state = loadCheckpoint();
+            if (!state.owner.isBlank() && !username.equals(state.owner))
+                throw new IOException("Hồ sơ dữ liệu thuộc tài khoản khác.");
+            restoreCheckpoint();
+        } catch (IOException | RuntimeException failure) {
+            root = previousRoot;
+            state = previousState;
+            throw failure;
+        }
     }
 
     private void restoreCheckpoint() throws IOException {
@@ -125,7 +155,8 @@ public class PeerStorage implements AutoCloseable {
         try {
             Path temporary = root.resolve("profile.json.tmp");
             json.writerWithDefaultPrettyPrinter().writeValue(temporary.toFile(), state);
-            AtomicFiles.move(temporary, stateFile);
+            AtomicFiles.move(temporary, root.resolve("profile.json"));
+            if (root.equals(baseRoot)) originalOwner = state.owner;
         } catch (IOException e) {
             throw new IllegalStateException("Không lưu được tiến độ tải.", e);
         }

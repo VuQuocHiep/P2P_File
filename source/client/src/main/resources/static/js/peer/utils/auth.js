@@ -4,6 +4,19 @@ import { applyState } from '../store/state.js';
 import { peerApi } from '../api/index.js';
 
 export function createPeerAuth({ model, live, data, render, requests, dialogs, client = peerApi }) {
+  const deviceKey = (username, field) => `peermesh-device:${username}:${field}`;
+
+  function restoreDevice() {
+    const username = $('#username').value;
+    for (const field of ['name', 'host']) {
+      const input = $('#' + field);
+      const previous = username === localStorage.getItem('peermesh-username')
+        ? localStorage.getItem('peermesh-' + field)
+        : null;
+      input.value = localStorage.getItem(deviceKey(username, field)) ?? previous ?? input.defaultValue;
+    }
+  }
+
   function switchMode(value) {
     model.mode = value;
     const mode = model.mode;
@@ -61,9 +74,11 @@ export function createPeerAuth({ model, live, data, render, requests, dialogs, c
           body.name = form.name.value;
           body.host = form.host.value;
           const next = await client.login(body);
-          for (const key of ['username', 'name', 'host']) {
-            localStorage.setItem('peermesh-' + key, body[key]);
+          for (const field of ['name', 'host']) {
+            localStorage.setItem(deviceKey(body.username, field), body[field]);
+            localStorage.removeItem('peermesh-' + field);
           }
+          localStorage.setItem('peermesh-username', body.username);
           form.password.value = '';
           showApp(next);
         }
@@ -81,5 +96,5 @@ export function createPeerAuth({ model, live, data, render, requests, dialogs, c
     });
   }
 
-  return { switchMode, showLogin, showApp, login, logout };
+  return { switchMode, showLogin, showApp, restoreDevice, login, logout };
 }

@@ -159,29 +159,8 @@ try:
     def file_state():
         return next(f for f in admin.call("GET", "/api/admin/dashboard")["files"] if f["manifest"]["id"] == HASH)
 
-    admin.call("POST", f"/api/admin/files/{HASH}/scan-request")
-    wait(lambda: file_state().get("scanStage") == "WAIT_SOURCE")
-    assert not uploaded.is_set(), "No file may be disclosed without owner consent"
-    print("PASS: requested scan waits without consent; no upload", flush=True)
-    admin.call("PATCH", f"/api/admin/files/{HASH}", {"status": "APPROVED"})
-    assert file_state()["status"] == "APPROVED"
-    print("PASS: waiting scan does not prevent manual approval", flush=True)
-
-    # Restart the tracker against the same MySQL schema while the request is pending.
-    tracker_process.terminate()
-    tracker_process.wait(timeout=20)
-    tracker_process = launch("server", tracker_args)
-    wait(lambda: admin.call("GET", "/api/health"))
-    admin = API(f"http://127.0.0.1:{tracker_port}")
-    admin.call("POST", "/api/auth/login", {"username": "admin", "password": "local-test-password-123"})
-    assert file_state()["scanStage"] == "WAIT_SOURCE"
-    print("PASS: pending request survives a real tracker restart", flush=True)
-
-    peer.call("POST", "/api/auth/login", login)
-    wait(lambda: peer.call("GET", "/api/status").get("peerStatus") == "APPROVED")
-    peer.call("PATCH", f"/api/library/{HASH}/scan-consent", {"enabled": True})
     wait(lambda: uploaded.is_set(), timeout=80)
-    print("PASS: real peer uploads the original file automatically after opt-in", flush=True)
+    print("PASS: peer shares the file and uploads it for scanning automatically", flush=True)
     wait(lambda: file_state().get("scanStage") == "DONE", timeout=90)
     result = file_state()
     assert result["status"] == "BLOCKED"

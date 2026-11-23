@@ -47,22 +47,30 @@ public class TrackerPeerService {
                 String id = input.id();
                 PeerEntity p;
                 if (id == null || id.isBlank()) {
+                    p = context.peers.findFirstByOwnerAndHostAndPortOrderByPositionAsc(
+                            a.username, input.host(), input.port()).orElse(null);
+                } else {
+                    p = access.ownPeer(a, id, false);
+                }
+                boolean newPeer = p == null;
+                if (newPeer) {
                     p = new PeerEntity();
                     p.id = UUID.randomUUID().toString();
                     p.owner = a.username;
                     p.status = "PENDING";
                     p.position = context.nextPeerPosition++;
-                } else {
-                    p = access.ownPeer(a, id, false);
-                    if (!Objects.equals(p.host, input.host()) || p.port != input.port())
-                        p.status = "PENDING";
                 }
+                boolean endpointChanged = !newPeer
+                        && (!Objects.equals(p.host, input.host()) || p.port != input.port());
+                if (endpointChanged && !"BLOCKED".equals(p.status))
+                    p.status = "PENDING";
                 p.name = input.name();
                 p.host = input.host();
                 p.port = input.port();
                 p.lastSeen = System.currentTimeMillis();
                 p = context.peers.save(p);
-                context.log(a.username, "REGISTER_PEER", p.id);
+                context.log(a.username, newPeer ? "REGISTER_PEER"
+                        : endpointChanged ? "UPDATE_PEER_ENDPOINT" : "RECONNECT_PEER", p.id);
                 return peerMapper.toResponse(p, access.online(p));
             } catch (Exception | Error failure) {
                 context.rollback(transaction);

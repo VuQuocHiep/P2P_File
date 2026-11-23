@@ -15,8 +15,6 @@ export const peerApi = {
     api(`/api/downloads/${id}/priority`, { method: 'PATCH', body: { priority } }),
   sharing: (id, enabled) =>
     api(`/api/library/${id}/sharing`, { method: 'PATCH', body: { enabled } }),
-  scanConsent: (id, enabled) =>
-    api(`/api/library/${id}/scan-consent`, { method: 'PATCH', body: { enabled } }),
   sources: (id) => api(`/api/files/${id}/sources`),
   chunkHistory: (id) => api(`/api/downloads/${id}/chunks`),
   lab: (action, body) => api('/api/lab/' + action, { method: 'POST', body }),
