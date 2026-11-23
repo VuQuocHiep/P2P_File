@@ -1,0 +1,47 @@
+import { $, updateHTML } from '../../shared/dom.js';
+import { titles, notes } from '../router/tabs.js';
+import { overview } from '../pages/overview.js';
+import { accountTable } from '../pages/accounts.js';
+import { peerTable } from '../pages/peers.js';
+import { fileTable } from '../pages/files.js';
+import { transferTable } from '../pages/transfers.js';
+import { roomTable } from '../pages/rooms.js';
+import { auditRows } from '../pages/audit.js';
+
+export function createAdminRenderer(model) {
+  let lastTab = '';
+  return function render() {
+    const { current, data } = model;
+    if (!model.signedIn || !data) return;
+    $('#breadcrumb').textContent = titles[current];
+    document.querySelectorAll('[data-tab]').forEach((button) => {
+      button.classList.toggle('active', button.dataset.tab === current);
+    });
+    const views = {
+      accounts: () => accountTable(data),
+      peers: () => peerTable(data.peers),
+      rooms: () => roomTable(data.rooms),
+      files: () => fileTable(data, model.malware),
+      transfers: () => transferTable(data),
+      audit: () => auditRows(data),
+    };
+    const content =
+      current === 'overview'
+        ? overview(data)
+        : /* HTML */ `<section class="panel">${views[current]()}</section>`;
+    updateHTML(
+      $('#content'),
+      /* HTML */ `<div class="page-heading">
+          <div>
+            <div class="eyebrow">PEERMESH CONTROL CENTER</div>
+            <h1>${titles[current]}</h1>
+            <p>${notes[current]}</p>
+          </div>
+          <span class="badge">LAN NETWORK</span>
+        </div>
+        ${content}`,
+      lastTab !== current,
+    );
+    lastTab = current;
+  };
+}

@@ -1,8 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createModuleLoader } = require('./modules.cjs');
-const peer = 'client/src/main/resources/static/js/peer/';
-const common = 'common/src/main/resources/META-INF/resources/assets/js/';
+const peer = 'frontend/src/peer/';
+const common = 'frontend/src/shared/';
 
 async function fixture(client) {
   const nodes = new Map();

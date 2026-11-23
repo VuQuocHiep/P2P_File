@@ -1,4 +1,4 @@
-/** Browser regressions against the real static modules, with a local HTTP/WebSocket API fixture. */
+/** Browser regressions against the built React entry points, with a local HTTP/WebSocket API fixture. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
@@ -284,10 +284,11 @@ async function fixture(role) {
       return send({ message: 'Đã cập nhật.' });
     }
     const relative = url.pathname === '/' ? '/index.html' : url.pathname;
-    const base = relative.startsWith('/assets/')
-      ? path.join(source, 'common/src/main/resources/META-INF/resources')
-      : path.join(source, role === 'peer' ? 'client' : 'server', 'src/main/resources/static');
-    const filename = path.resolve(base, '.' + relative);
+    const sharedDOM = relative === '/assets/js/dom.js';
+    const base = sharedDOM
+      ? path.join(source, 'frontend/src/shared')
+      : path.join(source, role === 'peer' ? 'client' : 'server', 'target/frontend');
+    const filename = path.resolve(base, sharedDOM ? 'dom.js' : '.' + relative);
     if (!filename.startsWith(base + path.sep) || !fs.existsSync(filename)) {
       response.writeHead(404);
       response.end();

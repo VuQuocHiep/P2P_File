@@ -3,7 +3,6 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = path.resolve(__dirname, '../..');
-const assets = path.join(source, 'common/src/main/resources/META-INF/resources/assets');
 
 /** Execute the same ES modules as the browser, without rewriting imports or installing a bundler. */
 function createModuleLoader(globals = {}) {
@@ -34,11 +33,7 @@ function createModuleLoader(globals = {}) {
     const module = getModule(path.resolve(source, relative));
     if (module.status === 'unlinked') {
       await module.link((specifier, parent) =>
-        getModule(
-          specifier.startsWith('/assets/')
-            ? path.join(assets, specifier.slice('/assets/'.length))
-            : path.resolve(path.dirname(parent.identifier), specifier),
-        ),
+        getModule(path.resolve(path.dirname(parent.identifier), specifier)),
       );
     }
     if (module.status === 'linked') await module.evaluate();

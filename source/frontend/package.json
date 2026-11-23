@@ -1,0 +1,22 @@
+{
+  "name": "peermesh-web",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "^20.19.0 || >=22.12.0" },
+  "scripts": {
+    "dev:admin": "vite --mode admin",
+    "dev:peer": "vite --mode peer",
+    "build": "vite build --mode admin && vite build --mode peer",
+    "build:admin": "vite build --mode admin",
+    "build:peer": "vite build --mode peer"
+  },
+  "dependencies": {
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.0.3",
+    "sass": "1.101.0",
+    "vite": "8.1.5"
+  }
+}

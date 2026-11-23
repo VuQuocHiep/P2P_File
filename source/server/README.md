@@ -55,11 +55,12 @@ source/server/
 │   └── migration/       # Tự động đồng bộ và chuyển đổi dữ liệu từ snapshot cũ
 └── src/main/resources/
     ├── application.properties
-    ├── schema-mysql.sql # Kịch bản khởi tạo database MySQL
-    └── static/          # Giao diện Admin Console (HTML5, CSS, Vanilla JS)
+    └── schema-mysql.sql # Kịch bản khởi tạo database MySQL
 ```
 
 ---
+
+Mã giao diện React nằm trong `source/frontend/src/admin/`. Maven đóng gói đầu ra Vite vào JAR.
 
 ## 🔗 Liên kết liên quan
 

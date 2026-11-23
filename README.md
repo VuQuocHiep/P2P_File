@@ -54,7 +54,7 @@ Peer A (Client)  <==== Socket TCP (Truyền Chunk trực tiếp) ====>  Peer B /
 | **Giao thức P2P** | TCP nhị phân | Tải song song đa nguồn, chunk 256 KiB |
 | **Cơ sở dữ liệu** | MySQL 8 + Spring Data JPA | Quản lý tài khoản, thiết bị, metadata file, phòng kín |
 | **Bảo mật & Toàn vẹn** | SHA-256, BCrypt, VirusTotal API | Kiểm tra băm toàn file/chunk, quét mã độc cloud |
-| **Giao diện Web** | HTML5, CSS3, Vanilla JavaScript | Tương thích với ứng dụng Java |
+| **Giao diện Web** | React, Vite, SCSS | Tương thích với ứng dụng Java |
 | **Build & Test** | Maven, JUnit 5 | Tự động hóa build, kiểm thử đơn vị và kịch bản E2E |
 
 ---
@@ -63,7 +63,7 @@ Peer A (Client)  <==== Socket TCP (Truyền Chunk trực tiếp) ====>  Peer B /
 
 ### 1. Chuẩn bị môi trường & Cơ sở dữ liệu
 
-* Yêu cầu máy đã cài **JDK 17+**, **Maven 3.8+** và **MySQL 8**.
+* Yêu cầu máy đã cài **JDK 17+**, **Maven 3.8+**, **Node.js 20.19+ hoặc 22.12+** kèm npm, và **MySQL 8**.
 * Khởi động dịch vụ MySQL và tạo sẵn cơ sở dữ liệu `peermesh`:
 
 ```sql
@@ -79,6 +79,19 @@ Mở terminal tại thư mục gốc của dự án và chạy:
 ```powershell
 mvn -f source/pom.xml package -DskipTests
 ```
+
+Maven cài thư viện từ lockfile và build cả hai giao diện. JAR đã build có thể chạy bằng Java mà không cần Node.js.
+
+Để sửa frontend với Vite, chạy các lệnh sau từ thư mục gốc. Giữ tracker và peer chạy ở cổng tương ứng để Vite chuyển tiếp API và WebSocket.
+
+```powershell
+npm --prefix source/frontend ci
+npm --prefix source/frontend run dev:admin
+# Mở terminal khác để chạy giao diện peer
+npm --prefix source/frontend run dev:peer
+```
+
+Giao diện phát triển dùng cổng 5173 (tracker) và 5174 (peer). Nếu backend chạy cổng khác, đặt biến môi trường `VITE_TRACKER_URL` hoặc `VITE_PEER_URL` trước khi chạy Vite.
 
 ### 3. Khởi động Server (Tracker)
 

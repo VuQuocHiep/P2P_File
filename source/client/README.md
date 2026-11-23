@@ -58,11 +58,12 @@ source/client/
 │   ├── websocket/       # Đẩy snapshot hoạt động peer qua /ws/peer
 │   └── dto/             # Đối tượng dữ liệu vào/ra API
 └── src/main/resources/
-    ├── application.properties
-    └── static/          # Giao diện người dùng Web (6 tab: Khám phá, Phiên tải, Thư viện, Phòng, Lab, Hoạt động)
+    └── application.properties
 ```
 
 ---
+
+Mã giao diện React nằm trong `source/frontend/src/peer/`. Maven đóng gói đầu ra Vite vào JAR.
 
 ## 🔗 Liên kết liên quan
 

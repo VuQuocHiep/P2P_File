@@ -1,0 +1,55 @@
+import { UI, esc, bytes } from '../../shared/ui.js';
+import { ready } from '../store/state.js';
+
+export function library(state) {
+  return state.library.length
+    ? /* HTML */ `<section class="panel">
+          ${UI.table(
+            ['File', 'Tiến độ lưu trữ', 'Danh mục', 'Chia sẻ', 'Thao tác'],
+            state.library.map(
+              (e) =>
+                /* HTML */ `<tr data-key="${esc(e.manifest.id)}">
+                  <td>
+                    <strong>${esc(e.manifest.name)}</strong
+                    ><small class="mono">${e.manifest.id.slice(0, 16)}…</small>
+                  </td>
+                  <td>
+                    ${bytes(e.manifest.size)}<small
+                      >${e.complete
+                        ? '✓ File hoàn chỉnh'
+                        : e.chunks.length +
+                          '/' +
+                          e.manifest.hashes.length +
+                          ' phần đã xác minh'}</small
+                    >
+                  </td>
+                  <td>${UI.badge(e.catalogStatus)}</td>
+                  <td>${UI.badge(e.sharing ? 'ONLINE' : 'OFFLINE')}</td>
+                  <td>
+                    <div class="actions">
+                      <button
+                        class="small"
+                        data-action="sharing"
+                        data-request-key="library:${e.manifest.id}"
+                        data-id="${e.manifest.id}"
+                        data-enabled="${!e.sharing}"
+                        ${!ready(state) ? 'disabled' : ''}
+                      >
+                        ${e.sharing ? 'Dừng chia sẻ' : 'Bật chia sẻ'}</button
+                      >${e.complete
+                        ? /* HTML */ `<a href="/api/library/${e.manifest.id}/content"
+                            >↓ Lưu file</a
+                          >`
+                        : ''}
+                    </div>
+                  </td>
+                </tr>`,
+            ),
+          )}
+        </section>
+        <p class="section-note">
+          Các phần tải về đã xác minh có thể được chia sẻ trước khi toàn bộ file hoàn tất. Dừng chia
+          sẻ sẽ giữ lại dữ liệu trên máy.
+        </p>`
+    : UI.empty('Thư viện trống. Thêm file để bắt đầu chia sẻ với mạng.');
+}

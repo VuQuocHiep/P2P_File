@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createModuleLoader } = require('./modules.cjs');
-const common = 'common/src/main/resources/META-INF/resources/assets/js/';
+const common = 'frontend/src/shared/';
 
 test('JSON mutations preserve same-origin cookies and the existing API header', async () => {
   let request;

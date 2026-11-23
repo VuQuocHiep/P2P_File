@@ -68,26 +68,23 @@ VirusTotal ──► Không có cảnh báo: tự duyệt / Có cảnh báo: ch�
 
 ## 🌐 Kiến trúc Giao diện Web (Frontend)
 
-Toàn bộ frontend được xây dựng bằng **Vanilla JavaScript** theo chuẩn **Native ES Modules** (`import/export`), không yêu cầu Node.js hay bundler khi chạy ứng dụng:
+Frontend nằm trong `source/frontend/`. React dựng khung đăng nhập, layout, điều hướng và hộp thoại. Vite build hai ứng dụng độc lập, một cho tracker và một cho peer. Maven đóng gói mỗi bản build vào JAR tương ứng, giữ nguyên cổng, REST API và WebSocket hiện tại.
 
 ```text
-source/
-├── common/.../assets/                 # Tài nguyên chia sẻ chung
-│   ├── css/theme.css                  # Toàn bộ quy chuẩn giao diện Dark Theme
-│   └── js/                            # Tiện ích: http.js, dom.js, requests.js, ui.js
-├── server/.../static/js/admin/        # Giao diện Quản trị mạng (Tracker)
-│   ├── app.js                         # Điểm khởi tạo ứng dụng
-│   ├── pages/                         # Màn hình: overview.js
-│   ├── components/                    # Thành phần: tables.js, malware.js
-│   ├── actions/                       # Hành động: files.js
-│   └── store/                         # Quản lý trạng thái: state.js, data.js
-└── client/.../static/js/peer/         # Giao diện Nút mạng (Peer Client)
-    ├── app.js                         # Điểm khởi tạo ứng dụng
-    ├── pages/                         # Màn hình: explore, downloads, library, rooms, lab, activity
-    ├── actions/                       # Hành động: bandwidth, downloads, library, rooms, lab
-    ├── components/dialogs/            # Hộp thoại: sources.js, chunk-history.js
-    └── store/                         # Quản lý trạng thái: state.js, data.js
+source/frontend/
+├── package.json, vite.config.js
+└── src/
+    ├── admin/ và peer/
+    │   ├── main.jsx, App.jsx    # Điểm khởi tạo React
+    │   ├── layout/, router/    # Khung trang và điều hướng theo tab
+    │   ├── pages/, components/ # Màn hình và phần giao diện dùng lại
+    │   ├── api/, actions/      # API chia theo nghiệp vụ và xử lý thao tác
+    │   ├── hooks/, store/      # Vòng đời, trạng thái và đồng bộ dữ liệu
+    │   └── styles/            # SCSS riêng của từng ứng dụng
+    └── shared/               # Theme và tiện ích HTTP, WebSocket, DOM
 ```
+
+Các màn hình cập nhật trực tiếp giữ template và bộ cập nhật DOM theo khóa ở bên trong layout React. Phần này giữ focus, trạng thái hộp thoại và nút đang xử lý khi nhận snapshot mới.
 
 ---
 
@@ -103,5 +100,5 @@ source/
 ## 🧪 Quy chuẩn Kiểm thử & Chất lượng Mã nguồn
 
 * **Backend Unit & Integration Tests:** Chạy qua Maven (`mvn test`). Kiểm tra tính toán SHA-256, giao thức khung tin TCP, cấp/xác thực vé tải, đa luồng 4 client đồng thời và kiểm thử toàn vẹn Checkpoint.
-* **Frontend Tests:** Sử dụng Native Test Runner của Node.js (`npm test`), chạy trực tiếp các module ES của trình duyệt mà không cần cài đặt thư viện bên ngoài.
+* **Frontend Tests:** Sử dụng Native Test Runner của Node.js (`npm test`), chạy trực tiếp các module nghiệp vụ. Kịch bản Playwright dùng đầu ra Vite.
 * **Quy chuẩn mã nguồn:** Định dạng thống nhất qua `.editorconfig` (UTF-8, LF) và `.prettierrc.json`.

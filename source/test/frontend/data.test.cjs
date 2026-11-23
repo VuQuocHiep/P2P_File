@@ -2,9 +2,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createModuleLoader } = require('./modules.cjs');
 
-const peer = 'client/src/main/resources/static/js/peer/';
-const admin = 'server/src/main/resources/static/js/admin/';
-const common = 'common/src/main/resources/META-INF/resources/assets/js/';
+const peer = 'frontend/src/peer/';
+const admin = 'frontend/src/admin/';
+const common = 'frontend/src/shared/';
 
 function deferred() {
   let resolve, reject;
